@@ -1,0 +1,22 @@
+{
+  "name": "netflix-imdb-ratings",
+  "version": "0.1.0",
+  "description": "Browser extension to display IMDb ratings for Netflix movies",
+  "main": "src/content.js",
+  "scripts": {
+    "start": "echo 'Load extension in Chrome DevTools'",
+    "build": "echo 'No build step required for Manifest V3'",
+    "test": "echo 'Add tests here'"
+  },
+  "keywords": [
+    "netflix",
+    "imdb",
+    "ratings",
+    "browser-extension",
+    "chrome-extension"
+  ],
+  "author": "Anubhav",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
