@@ -1,5 +1,28 @@
 # Release Notes
 
+## [0.2.1] - 2026-04-12
+
+### Added
+- Local analytics tracking (stores in chrome.storage.local)
+- Anonymous aggregate reporting (weekly to backend)
+- Track blank API results (which titles return no IMDb match)
+- Track feature usage (filter slider uses, badge counts, cache rates)
+- Backend setup: Vercel + Supabase integration
+- ANALYTICS_SETUP.md: Complete deployment guide
+
+### Changed
+- manifest.json: Added analytics.js and backend host permissions
+- README.md: Updated privacy section with analytics details
+- Analytics data: Top 20 blank titles tracked for debugging
+
+### Technical
+- Concurrent analytics module with chrome.storage.local
+- Automatic weekly aggregate reporting (no user intervention)
+- Zero personal data collected (fully anonymous)
+- Chrome Web Store compliant
+
+---
+
 ## [0.2.0] - 2026-04-12
 
 ### Added
