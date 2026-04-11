@@ -17,15 +17,15 @@ chrome.runtime.onMessage.addListener((request, _, sendResponse) => {
   if (request.action === 'fetchIMDb') {
     console.log(`[BG] Fetching IMDb for: ${request.title}`);
 
-    // Test: send back a hardcoded rating first to verify message passing works
-    const testResponse = {
-      title: request.title,
-      rating: '8.5',  // Hardcoded test rating
-      year: '2023',
-      imdbId: 'test'
-    };
-    console.log(`[BG] Sending test response:`, JSON.stringify(testResponse));
-    sendResponse(testResponse);
+    fetchIMDbRating(request.title)
+      .then(data => {
+        console.log(`[BG] Sending response:`, JSON.stringify(data));
+        sendResponse(data);
+      })
+      .catch(error => {
+        console.error('[BG] Error:', error);
+        sendResponse({ title: request.title, rating: 'N/A', error: error.message });
+      });
 
     // Keep the message channel open for async response
     return true;
@@ -139,10 +139,57 @@ async function processQueue() {
  * Fetch data from OMDb API
  */
 async function fetchFromOMDb(title) {
+  // Try multiple variations of the title
+  const titleVariations = [
+    title,                                    // Original
+    title.split(':')[0].trim(),               // Remove subtitle (before colon)
+    title.split('(')[0].trim(),               // Remove parenthetical info
+    title.replace(/[^\w\s]/g, '').trim()      // Remove special characters
+  ];
+
+  for (const variant of titleVariations) {
+    if (!variant || variant.length < 2) continue;
+
+    try {
+      console.log(`[BG] Trying OMDb with: "${variant}" (original: "${title}")`);
+
+      // Try as movie first
+      let data = await tryOMDbSearch(variant, 'movie');
+      if (data.Response === 'True') {
+        console.log(`[BG] Found as movie: ${variant}`);
+        return normalizeOMDbResponse(data);
+      }
+
+      // Try as series
+      data = await tryOMDbSearch(variant, 'series');
+      if (data.Response === 'True') {
+        console.log(`[BG] Found as series: ${variant}`);
+        return normalizeOMDbResponse(data);
+      }
+    } catch (error) {
+      console.log(`[BG] Error trying ${variant}:`, error.message);
+      continue;
+    }
+  }
+
+  // Nothing found
+  console.log(`[BG] No match found for any variation of: ${title}`);
+  return {
+    title,
+    rating: 'N/A',
+    year: null,
+    imdbId: null
+  };
+}
+
+/**
+ * Try a single OMDb search
+ */
+async function tryOMDbSearch(title, type) {
   const params = new URLSearchParams({
     apikey: OMDB_API_KEY,
     t: title,
-    type: 'movie'
+    type: type
   });
 
   try {
@@ -154,34 +201,11 @@ async function fetchFromOMDb(title) {
     ]);
 
     if (!response.ok) {
-      throw new Error(`OMDb API error: ${response.status}`);
+      throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json();
-
-    // Check if movie was found
-    if (data.Response === 'False') {
-      // Try as series if movie search failed
-      params.set('type', 'series');
-      const seriesResponse = await fetch(`${OMDB_API_URL}?${params}`);
-      const seriesData = await seriesResponse.json();
-
-      if (seriesData.Response === 'True') {
-        return normalizeOMDbResponse(seriesData);
-      }
-
-      // Title not found
-      return {
-        title,
-        rating: 'N/A',
-        year: null,
-        imdbId: null
-      };
-    }
-
-    return normalizeOMDbResponse(data);
+    return await response.json();
   } catch (error) {
-    console.error('OMDb fetch error:', error);
     throw error;
   }
 }
