@@ -401,13 +401,19 @@ MIT License — Free for personal and commercial use.
 
 ## 🔐 Privacy & Security
 
-### What We Collect: NOTHING
+### What We Collect: Anonymous Stats Only
 
-- ❌ No analytics
-- ❌ No telemetry
+- ❌ No user identity
+- ❌ No personal data
 - ❌ No IP logging
 - ❌ No tracking cookies
-- ❌ No user identification
+- ❌ No viewing history
+
+✅ **Optional**: Weekly aggregate statistics (counts only, never personal)
+  - How many badges were shown (not which titles)
+  - How often filter slider was used (not filter values)
+  - Which titles return no IMDb match (for debugging)
+  - Cache hit rates and API success rates
 
 ### What We Access
 
@@ -415,20 +421,33 @@ Extension can only:
 1. **Read** Netflix page HTML (to extract titles)
 2. **Request** OMDb API (to fetch ratings)
 3. **Store** results in browser (chrome.storage.local)
+4. **Optionally send** anonymous aggregate stats weekly
 
 Extension **cannot**:
 - Access Netflix account/password
+- Know your identity
 - Track viewing history
-- Share data with third parties
+- Share personal data with third parties
 - Inject ads or malware
 - Modify Netflix functionality (except display)
 
 ### Transparency
 
 - **Open source**: Code is auditable on GitHub
-- **No hidden requests**: Only OMDb API calls (visible in DevTools)
+- **No hidden requests**: Only OMDb API + optional analytics (visible in DevTools)
 - **No external dependencies**: Vanilla JavaScript only
-- **No data persistence**: Cache expires after 7 days
+- **No data persistence**: Cache expires after 7 days, analytics sent weekly
+- **User control**: All local stats visible in `chrome.storage.local`
+
+### Analytics Details
+
+**If you enable analytics:**
+- Extension sends **only aggregate counts** (no personal data)
+- Sent **once per week** automatically
+- **Never includes**: user ID, viewing history, timestamps, IP
+- **Always includes**: API success rates, feature usage counts, blank titles
+- **Stored in**: Supabase PostgreSQL (aggregate counts only)
+- **Visible to**: You (in Supabase dashboard) via [ANALYTICS_SETUP.md](ANALYTICS_SETUP.md)
 
 ---
 

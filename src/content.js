@@ -20,6 +20,11 @@ const REQUEST_TIMEOUT_MS = 5000;
 
 console.log('Netflix IMDb Ratings extension loaded');
 
+// Load analytics module
+const analyticsScript = document.createElement('script');
+analyticsScript.src = chrome.runtime.getURL('src/analytics.js');
+document.documentElement.appendChild(analyticsScript);
+
 // ===== STATE MANAGEMENT =====
 // Track pending requests to avoid duplicates
 const pendingTitles = new Set();
@@ -338,17 +343,22 @@ async function requestIMDbRating(title, card) {
 
     if (response && response.rating && response.rating !== 'N/A') {
       console.log(`[IMDb] Updating badge with rating: ${response.rating}`);
+      // [2026-04-12] Track successful API call
+      trackAPICall(title, true, false);
+      trackCacheHit(response.cached);
       updateBadge(card, response);
       applyFilterToCard(card, parseFloat(response.rating));
     } else {
-      // [2026-04-12] Remove badge for N/A results instead of showing "?"
+      // [2026-04-12] Remove badge for N/A results, track as blank
       console.log(`[IMDb] No rating found, removing badge. Response was:`, JSON.stringify(response));
+      trackAPICall(title, false, true); // Track blank result
       removeBadge(card);
     }
   } catch (error) {
-    // [2026-04-12] Remove badge on error instead of showing "?"
+    // [2026-04-12] Remove badge on error, track as error
     console.error(`[IMDb] Error fetching rating for ${title}:`, error);
     pendingTitles.delete(title);
+    trackAPICall(title, false, false); // Track as error
     removeBadge(card);
   }
 }
@@ -376,6 +386,9 @@ function injectBadge(card, data) {
   }
 
   card.appendChild(badge);
+
+  // [2026-04-12] Track badge injection
+  trackBadgeInjected();
 }
 
 /**
@@ -464,6 +477,9 @@ function injectFilterBar() {
   slider.addEventListener('input', (e) => {
     currentThreshold = parseFloat(e.target.value);
     valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
+
+    // [2026-04-12] Track filter usage
+    trackFeatureUse('filter-slider');
 
     // Apply filter to all visible cards
     applyFilterToAllCards();

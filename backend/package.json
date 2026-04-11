@@ -1,0 +1,13 @@
+{
+  "name": "netflix-imdb-backend",
+  "version": "1.0.0",
+  "description": "Backend for Netflix IMDb Ratings extension analytics",
+  "main": "api/stats.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0"
+  }
+}
