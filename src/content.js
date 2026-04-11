@@ -247,10 +247,12 @@ function normalizeTitle(title) {
 
 function initializeExtension() {
   // Inject badges on initial page load
+  // [2026-04-12 FIX] Increased from 500ms to 1000ms to wait for Netflix layout stabilization
+  // This ensures offsetWidth reflects final rendered dimensions on all rows
   setTimeout(() => {
     injectBadgesForVisibleCards();
     injectFilterBar();
-  }, 500);
+  }, 1000);
 
   // Set up MutationObserver to handle Netflix's dynamic content loading
   const observer = new MutationObserver((mutations) => {
@@ -533,20 +535,30 @@ function injectFilterBar() {
     }
   }
 
-  // Add event listener
-  const slider = filterBar.querySelector('.imdb-slider');
-  const valueDisplay = filterBar.querySelector('.imdb-filter-value');
+  // [2026-04-12 FIX] Add event listener with null checks to prevent crashes
+  try {
+    const slider = filterBar.querySelector('.imdb-slider');
+    const valueDisplay = filterBar.querySelector('.imdb-filter-value');
 
-  slider.addEventListener('input', (e) => {
-    currentThreshold = parseFloat(e.target.value);
-    valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
+    // [2026-04-12 FIX] Defensive null checks prevent TypeError if querySelector fails
+    if (!slider || !valueDisplay) {
+      console.error('[Filter Bar] Failed to find slider or value display elements', { slider: !!slider, valueDisplay: !!valueDisplay });
+      return;
+    }
 
-    // [2026-04-12] Track filter usage
-    trackFeatureUse('filter-slider');
+    slider.addEventListener('input', (e) => {
+      currentThreshold = parseFloat(e.target.value);
+      valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
 
-    // Apply filter to all visible cards
-    applyFilterToAllCards();
-  });
+      // [2026-04-12] Track filter usage
+      trackFeatureUse('filter-slider');
+
+      // Apply filter to all visible cards
+      applyFilterToAllCards();
+    });
+  } catch (error) {
+    console.error('[Filter Bar] Error setting up event listeners:', error);
+  }
 }
 
 /**

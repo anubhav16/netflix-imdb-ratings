@@ -1,5 +1,26 @@
 # Release Notes
 
+## [0.2.4] - 2026-04-12
+
+### Fixed
+- Filter bar no longer crashes with null pointer exception when querySelector fails
+- Badge sizing now correctly calculated after Netflix layout stabilizes (1000ms vs 500ms)
+- Manifest version updated to match deployed code (was stuck at 0.1.0)
+- Added null checks and error handling for filter bar event listeners
+- Increased initial setTimeout to 1000ms to ensure accurate offsetWidth calculations on all thumbnail rows
+
+### Changed
+- injectFilterBar(): Added try-catch and null checks around querySelector + addEventListener
+- initializeExtension(): Increased setTimeout from 500ms to 1000ms for layout stabilization
+- manifest.json: Updated version from 0.1.0 to 0.2.3
+
+### Technical
+- Defensive null checks prevent content script crashes when DOM selectors fail
+- Timing alignment ensures offsetWidth reflects final rendered dimensions
+- Version consistency enables proper extension hot-reload and cache busting
+
+---
+
 ## [0.2.3] - 2026-04-12
 
 ### Fixed
