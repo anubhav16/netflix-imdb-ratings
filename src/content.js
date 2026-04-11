@@ -33,6 +33,7 @@ const pendingTitles = new Set();
 // Track filter bar state
 let filterBar = null;
 let currentThreshold = DEFAULT_RATING_THRESHOLD;
+let filterBarInsertionRetries = 0; // [2026-04-12 FIX] Track retry attempts for filter bar
 
 // Request queue management
 let requestQueue = [];
@@ -311,7 +312,8 @@ function injectBadgesForVisibleCards() {
 function extractTitle(card) {
   // Validate card width first — ranking cards are ~80px, movies are ≥120px
   // [2026-04-12] Skip narrow containers (prevents ranking number injection)
-  if (card.offsetWidth && card.offsetWidth < 100) {
+  // [2026-04-12 FIX] Use !card.offsetWidth to also reject undefined/0 values (falsy-check bug)
+  if (!card.offsetWidth || card.offsetWidth < 100) {
     return null;
   }
 
@@ -418,6 +420,11 @@ function injectBadge(card, data) {
   const badge = document.createElement('div');
   badge.className = 'imdb-badge';
 
+  // [2026-04-12 FIX] Responsive sizing: small (18px) for narrow cards (<100px), large (28px) for regular
+  const cardWidth = card.offsetWidth;
+  const badgeSize = cardWidth < 100 ? 'small' : 'large';
+  badge.setAttribute('data-size', badgeSize);
+
   if (data === null) {
     // Loading state: pulsating dot (no text)
     // [2026-04-12] Show pulsating dot instead of "?" during loading
@@ -507,11 +514,23 @@ function injectFilterBar() {
 
   // Insert at top of main content area (before first Netflix section)
   const mainContent = document.querySelector('[data-uia="browse"]') || document.querySelector('[role="main"]');
-  if (mainContent) {
-    mainContent.insertBefore(filterBar, mainContent.firstChild);
-  } else {
-    // Fallback: insert after body opening
+  const insertionSucceeded = mainContent && mainContent.insertBefore(filterBar, mainContent.firstChild);
+
+  if (!insertionSucceeded) {
+    // [2026-04-12 FIX] If primary insertion failed, try fallback and set up retry on MutationObserver
+    console.warn('[Filter Bar] Primary insertion failed, attempting fallback');
     document.body.insertBefore(filterBar, document.body.firstChild);
+
+    // [2026-04-12 FIX] Schedule retry on next MutationObserver event (in case Netflix DOM loads later)
+    if (filterBarInsertionRetries < 3) {
+      filterBarInsertionRetries++;
+      setTimeout(() => {
+        // If filter bar still visible in fallback location, leave it there
+        if (document.body.contains(filterBar)) {
+          console.log('[Filter Bar] Filter bar successfully injected (fallback)');
+        }
+      }, 1000);
+    }
   }
 
   // Add event listener

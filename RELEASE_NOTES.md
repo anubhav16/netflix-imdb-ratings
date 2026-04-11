@@ -1,5 +1,27 @@
 # Release Notes
 
+## [0.2.3] - 2026-04-12
+
+### Fixed
+- Pulsating dots no longer appear on ranking numbers — fixed falsy-check bug in width validation
+- Rating badges no longer overflow narrow thumbnails — implemented responsive sizing (18px on narrow, 28px on regular)
+- Filter bar now visible on Netflix pages — increased z-index to 10000 and added insertion retry logic
+- Width validation now correctly rejects cards with offsetWidth ≤ 100px (was incorrectly accepting undefined/0)
+
+### Changed
+- extractTitle(): Fixed width check to use `!card.offsetWidth || card.offsetWidth < 100`
+- injectBadge(): Added responsive sizing via data-size attribute based on thumbnail width
+- injectFilterBar(): Added retry logic on MutationObserver if initial insertion fails
+- .imdb-badge CSS: Added size variants (small: 18px, large: 28px)
+- .imdb-filter-bar CSS: Increased z-index from 999 to 10000
+
+### Technical
+- Dynamic badge sizing adapts to container width (no hard-coded 28px for all cases)
+- Filter bar retry logic ensures visibility even with late DOM insertion
+- Backward compatible — no breaking changes to API or storage
+
+---
+
 ## [0.2.2] - 2026-04-12
 
 ### Fixed

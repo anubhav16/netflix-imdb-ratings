@@ -33,6 +33,29 @@
   max-height: 28px;
 }
 
+/* [2026-04-12 FIX] Responsive badge sizing for narrow vs regular thumbnails */
+.imdb-badge[data-size="small"] {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  top: 4px;
+  left: 4px;
+  font-size: 8px;
+  border-width: 1.5px;
+}
+
+.imdb-badge[data-size="large"] {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  top: 8px;
+  left: 8px;
+  font-size: 11px;
+  border-width: 2px;
+}
+
 .imdb-badge span {
   display: block;
   width: 100%;
@@ -73,7 +96,8 @@
   padding: 12px 20px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(245, 197, 24, 0.3);
-  z-index: 999;
+  /* [2026-04-12 FIX] Increased z-index from 999 to 10000 to ensure visibility above Netflix headers */
+  z-index: 10000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
