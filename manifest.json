@@ -10,8 +10,7 @@
   ],
   "host_permissions": [
     "https://www.netflix.com/*",
-    "https://www.imdb.com/*",
-    "https://api.imdb.com/*"
+    "https://www.omdbapi.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"

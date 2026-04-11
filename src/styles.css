@@ -1,61 +1,163 @@
 /* Netflix IMDb Ratings extension styles */
 
-.imdb-rating-overlay {
+/* ===== BADGE STYLES ===== */
+
+.imdb-badge {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.7));
-  padding: 12px;
-  z-index: 1000;
-  border-radius: 4px;
-  animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.imdb-rating-content {
+  top: 8px;
+  left: 8px;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #F5C518;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  font-weight: bold;
+  font-size: 11px;
+  color: #F5C518;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  animation: badgeFadeIn 0.3s ease-out;
+}
+
+.imdb-badge span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.imdb-rating-stars {
-  font-size: 16px;
-  font-weight: bold;
-  color: #ffd700;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+.imdb-badge-loading {
+  animation: badgePulse 1.5s ease-in-out infinite;
 }
 
-.imdb-rating-title {
-  font-size: 12px;
-  color: #fff;
-  text-align: center;
-  line-height: 1.3;
-  max-height: 32px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.imdb-rating-link {
-  font-size: 11px;
-  color: #ffd700;
-  text-decoration: none;
-  margin-top: 4px;
+@keyframes badgePulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ===== FILTER BAR STYLES ===== */
+
+.imdb-filter-bar {
+  background: rgba(20, 20, 20, 0.95);
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.3);
+  z-index: 999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.imdb-filter-container {
+  max-width: 400px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.imdb-filter-container label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #f5f5f5;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.imdb-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.imdb-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #555, #888);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
   cursor: pointer;
 }
 
-.imdb-rating-link:hover {
-  text-decoration: underline;
+.imdb-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #F5C518;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.imdb-slider::-webkit-slider-thumb:hover {
+  background: #FFD700;
+  box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
+}
+
+.imdb-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #F5C518;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.imdb-slider::-moz-range-thumb:hover {
+  background: #FFD700;
+  box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
+}
+
+.imdb-filter-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #F5C518;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ===== FILTER EFFECT STYLES ===== */
+
+.imdb-faded {
+  opacity: 0.15 !important;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.imdb-faded .imdb-badge {
+  opacity: 0.3;
+}
+
+/* Preserve interactivity for non-faded cards */
+.imdb-badge:not(.imdb-badge-loading) {
+  transition: all 0.2s ease;
+}
+
+.imdb-badge:hover:not(.imdb-badge-loading) {
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(245, 197, 24, 0.6);
 }
