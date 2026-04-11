@@ -1,9 +1,10 @@
 // ===== CONFIGURATION =====
+// [2026-04-12] Refined selectors to exclude ranking number containers
 const NETFLIX_SELECTORS = [
-  '[data-testid="hit-title"]',
-  '.slider-item',
-  '[data-uia="ptrack-content"]',
-  '.title-card-container'
+  '[data-testid="hit-title"]:not([data-testid*="ranking"])',
+  '.slider-item:not(.ranking-item)',
+  '[data-uia="ptrack-content"]:not([data-uia*="ranking"])',
+  '.title-card-container:not(.ranking-container)'
 ];
 const DEFAULT_RATING_THRESHOLD = 0;
 const BADGE_SIZE_PX = 28;
@@ -305,27 +306,68 @@ function injectBadgesForVisibleCards() {
 
 /**
  * Extract title text from a Netflix card, trying multiple strategies
+ * [2026-04-12] Added validation to reject ranking numbers and invalid titles
  */
 function extractTitle(card) {
+  // Validate card width first — ranking cards are ~80px, movies are ≥120px
+  // [2026-04-12] Skip narrow containers (prevents ranking number injection)
+  if (card.offsetWidth && card.offsetWidth < 100) {
+    return null;
+  }
+
   // Strategy 1: Direct text content
-  const text = card.textContent?.trim();
+  let text = card.textContent?.trim();
   if (text && text.length > 0 && text.length < 150) {
-    return text;
+    // [2026-04-12] Reject purely numeric titles (ranking numbers like "1", "2", "42")
+    if (!isValidTitle(text)) {
+      text = null;
+    } else {
+      return text;
+    }
   }
 
   // Strategy 2: Title attribute
   const titleAttr = card.getAttribute('title') || card.getAttribute('aria-label');
   if (titleAttr) {
-    return titleAttr.split('•')[0].trim();
+    const extracted = titleAttr.split('•')[0].trim();
+    if (isValidTitle(extracted)) {
+      return extracted;
+    }
   }
 
   // Strategy 3: Look for specific text elements
   const titleSpan = card.querySelector('[data-uia="title-span"], span[role="heading"]');
   if (titleSpan) {
-    return titleSpan.textContent?.trim();
+    const spanText = titleSpan.textContent?.trim();
+    if (spanText && isValidTitle(spanText)) {
+      return spanText;
+    }
   }
 
   return null;
+}
+
+/**
+ * Validate that a title is an actual movie/show name, not a ranking number
+ * [2026-04-12] Reject: pure digits, too short, non-alphanumeric only
+ */
+function isValidTitle(title) {
+  // Reject if too short
+  if (!title || title.length < 2) {
+    return false;
+  }
+
+  // Reject if purely numeric (ranking numbers: "1", "2", "42", etc.)
+  if (/^\d+$/.test(title)) {
+    return false;
+  }
+
+  // Reject if no alphanumeric characters at all
+  if (!/[a-zA-Z0-9]/.test(title)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -368,7 +410,9 @@ async function requestIMDbRating(title, card) {
  */
 function injectBadge(card, data) {
   // Ensure card has position: relative for absolute badge positioning
+  // [2026-04-12] Also set overflow: hidden to constrain badge to thumbnail
   card.style.position = 'relative';
+  card.style.overflow = 'hidden';
 
   // Create badge element
   const badge = document.createElement('div');

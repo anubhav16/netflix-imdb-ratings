@@ -1,5 +1,12 @@
 /* Netflix IMDb Ratings extension styles */
 
+/* ===== BADGE CONTAINER STYLES ===== */
+/* [2026-04-12] Constrain badge to thumbnail boundaries */
+.imdb-badge-parent {
+  position: relative;
+  overflow: hidden;
+}
+
 /* ===== BADGE STYLES ===== */
 
 .imdb-badge {
@@ -20,6 +27,10 @@
   color: #F5C518;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   animation: badgeFadeIn 0.3s ease-out;
+  /* [2026-04-12] Constrain badge size and prevent overflow */
+  box-sizing: border-box;
+  max-width: 28px;
+  max-height: 28px;
 }
 
 .imdb-badge span {

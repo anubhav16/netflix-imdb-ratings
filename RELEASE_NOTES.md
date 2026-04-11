@@ -1,5 +1,21 @@
 # Release Notes
 
+## [0.2.2] - 2026-04-12
+
+### Fixed
+- Badges no longer injected on ranking numbers in "Top 10 Shows" sections
+- Title validation: reject single/double digit strings (prevents "1", "2", "3" from being treated as movies)
+- Width pre-flight check: skip narrow containers (ranking cards are ~80px, movies are ≥120px)
+- Badge overflow handling: constrain badges to thumbnail boundaries (no bleed-out)
+- Selector refinement: exclude index/ranking containers from badge injection
+
+### Changed
+- extractTitle(): Now validates title content (alphanumeric, min 2 chars)
+- injectBadgesForVisibleCards(): Added width check before extracting titles
+- Badge parent styling: Added overflow handling
+
+---
+
 ## [0.2.1] - 2026-04-12
 
 ### Added
