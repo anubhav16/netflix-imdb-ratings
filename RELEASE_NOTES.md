@@ -1,5 +1,35 @@
 # Release Notes
 
+## [0.3.3] - 2026-04-14
+
+### Removed (Phase 2: Cleanup)
+- **Legacy filter bar code** — Completely removed old fixed-position filter bar implementation
+  - Deleted `updateFilterBarVisibility()` function (handled old bar visibility)
+  - Removed 90+ lines of legacy CSS (.imdb-filter-bar, .imdb-slider, .imdb-filter-container, etc.)
+  - Updated all visibility handlers to use new .imdb-filter-trigger element
+  - SPA navigation handlers (pushState, replaceState, popstate) updated for new trigger
+
+### Changed
+- **Visibility logic** — Replaced old filter bar visibility with new floating trigger logic
+  - All SPA navigation detection now updates .imdb-filter-trigger instead of .imdb-filter-bar
+  - MutationObserver handles visibility for both badge injection and trigger visibility
+  - Periodic re-injection check properly manages floating trigger element
+  - All visibility checks use consistent `shouldShowFilter()` function
+
+### Technical
+- Code cleanup: ~130 lines removed from content.js and styles.css
+- No changes to filter functionality or badge rendering
+- State management and persistence unchanged
+- Filter logic (applyFilterToAllCards, etc.) untouched
+
+### Test Status
+- ✅ All Step 1/2 filter tests still pass
+- ✅ New UI is sole filter implementation
+- ✅ No console errors from deleted code
+- ✅ SPA navigation and visibility work correctly
+
+---
+
 ## [0.3.2] - 2026-04-14
 
 ### Changed (Phase 1: Filter UI Redesign)

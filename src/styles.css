@@ -244,101 +244,10 @@
   }
 }
 
-/* ===== FILTER BAR STYLES (LEGACY - KEPT FOR REFERENCE) ===== */
-/* [2026-04-14] Old fixed bar styles deprecated in favor of floating trigger + bottom sheet */
-/* Keeping commented out to avoid confusion with new UI */
-
-/*
-.imdb-filter-bar {
-  position: fixed;
-  top: 70px;
-  left: 0;
-  right: 0;
-  background: rgba(20, 20, 20, 0.95);
-  padding: 12px 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(245, 197, 24, 0.3);
-  z-index: 10000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.imdb-filter-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.imdb-filter-container label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #999;
-  white-space: nowrap;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.imdb-filter-container > .imdb-mode-toggle {
-  align-self: flex-start;
-}
-
-.imdb-filter-container > .imdb-pill-buttons {
-  width: 100%;
-}
-
-.imdb-slider-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-}
-
-.imdb-slider {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(to right, #555, #888);
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
-  cursor: pointer;
-}
-
-.imdb-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #F5C518;
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
-}
-
-.imdb-slider::-webkit-slider-thumb:hover {
-  background: #FFD700;
-  box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
-}
-
-.imdb-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #F5C518;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
-}
-
-.imdb-slider::-moz-range-thumb:hover {
-  background: #FFD700;
-  box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
-}
-*/
+/* [2026-04-14 REMOVED] Legacy filter bar and slider styles
+   The old fixed-position filter bar (positioned at top: 70px, full width) and range slider
+   have been completely removed in favor of the new floating trigger button + bottom sheet.
+   See git history for the old implementation. */
 
 /* ===== PILL BUTTON STYLES ===== */
 /* [2026-04-13] Replace range slider with pill buttons matching Netflix aesthetic */
@@ -425,16 +334,7 @@
 }
 
 /* ===== FILTER EFFECT STYLES ===== */
-
-.imdb-faded {
-  opacity: 0.15 !important;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.imdb-faded .imdb-badge {
-  opacity: 0.3;
-}
+/* [2026-04-12] Filtered cards use display: none for instant hiding, no fade animations */
 
 /* Preserve interactivity for non-faded cards */
 .imdb-badge:not(.imdb-badge-loading) {
