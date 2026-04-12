@@ -2,16 +2,25 @@
 
 ## [0.3.3] - 2026-04-14
 
+### Fixed
+- **Filter trigger visibility** — Fixed visibility control for floating trigger button on all pages
+  - Filter now correctly visible on `/browse` and `/search` pages
+  - Filter correctly hidden on `/watch/...` (player) and profile selection screens
+  - SPA navigation (pushState, replaceState, popstate) properly updates trigger visibility
+  - Periodic re-injection respects visibility rules — no re-appearing on wrong screens
+  - Fixed `requestIMDbRating()` to use correct `response.imdbRating` field (was: `response.rating`)
+  - Fixed badge injection to use `injectBadge()` instead of deprecated `updateBadge()`
+
 ### Removed (Phase 2: Cleanup)
 - **Legacy filter bar code** — Completely removed old fixed-position filter bar implementation
-  - Deleted `updateFilterBarVisibility()` function (handled old bar visibility)
+  - Deleted deprecated `updateFilterBarVisibility()` function (handled old `.imdb-filter-bar`)
   - Removed 90+ lines of legacy CSS (.imdb-filter-bar, .imdb-slider, .imdb-filter-container, etc.)
-  - Updated all visibility handlers to use new .imdb-filter-trigger element
-  - SPA navigation handlers (pushState, replaceState, popstate) updated for new trigger
+  - Updated all visibility handlers to use new `.imdb-filter-trigger` element
+  - SPA navigation handlers (pushState, replaceState, popstate) use direct trigger queries
 
 ### Changed
 - **Visibility logic** — Replaced old filter bar visibility with new floating trigger logic
-  - All SPA navigation detection now updates .imdb-filter-trigger instead of .imdb-filter-bar
+  - All SPA navigation detection now updates `.imdb-filter-trigger` instead of `.imdb-filter-bar`
   - MutationObserver handles visibility for both badge injection and trigger visibility
   - Periodic re-injection check properly manages floating trigger element
   - All visibility checks use consistent `shouldShowFilter()` function
@@ -27,6 +36,7 @@
 - ✅ New UI is sole filter implementation
 - ✅ No console errors from deleted code
 - ✅ SPA navigation and visibility work correctly
+- ✅ Filter trigger visible on `/browse`, hidden on `/watch/...` and profile screens
 
 ---
 
