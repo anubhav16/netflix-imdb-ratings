@@ -253,9 +253,35 @@ function initializeExtension() {
   // [2026-04-12 FIX] Increased from 500ms to 1000ms to wait for Netflix layout stabilization
   // This ensures offsetWidth reflects final rendered dimensions on all rows
   setTimeout(() => {
+    console.log('[Init] Page load initialization: injecting badges and filter bar');
     injectBadgesForVisibleCards();
     injectFilterBar();
+
+    // [2026-04-13] Verify filter bar is in DOM and visible
+    const filterBarElement = document.querySelector('.imdb-filter-bar');
+    if (filterBarElement) {
+      const styles = window.getComputedStyle(filterBarElement);
+      console.log('[Init] Filter bar CSS computed:', {
+        display: styles.display,
+        position: styles.position,
+        zIndex: styles.zIndex,
+        top: styles.top,
+        visibility: styles.visibility,
+        opacity: styles.opacity
+      });
+    } else {
+      console.warn('[Init] Filter bar element not found in DOM after injection');
+    }
   }, 1000);
+
+  // [2026-04-13] Periodic check to ensure filter bar stays in DOM (re-inject if removed by Netflix)
+  setInterval(() => {
+    const filterBarElement = document.querySelector('.imdb-filter-bar');
+    if (!filterBarElement) {
+      console.log('[Periodic] Filter bar missing from DOM, re-injecting...');
+      injectFilterBar();
+    }
+  }, 5000);
 
   // Set up MutationObserver to handle Netflix's dynamic content loading
   const observer = new MutationObserver((mutations) => {
@@ -489,10 +515,14 @@ function applyFilterToCard(card, rating) {
 
 /**
  * Inject filter control bar
+ * [2026-04-13] Added robust event handling for all input types (input, change, touchend)
+ * [2026-04-13] Added DOM presence check to re-inject if removed
  */
 function injectFilterBar() {
-  // Check if filter bar already exists
-  if (filterBar) {
+  // [2026-04-13] Check if filter bar is still in DOM (might have been removed by Netflix)
+  const existingFilterBar = document.querySelector('.imdb-filter-bar');
+  if (existingFilterBar) {
+    filterBar = existingFilterBar;
     return;
   }
 
@@ -534,7 +564,9 @@ function injectFilterBar() {
       return;
     }
 
-    slider.addEventListener('input', (e) => {
+    // [2026-04-13] Handle all input events to ensure slider works in both directions
+    // 'input' fires on drag, 'change' fires on release, 'touchend' for mobile
+    const handleSliderChange = (e) => {
       currentThreshold = parseFloat(e.target.value);
       valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
 
@@ -543,7 +575,13 @@ function injectFilterBar() {
 
       // Apply filter to all visible cards
       applyFilterToAllCards();
-    });
+    };
+
+    slider.addEventListener('input', handleSliderChange);
+    slider.addEventListener('change', handleSliderChange);
+    slider.addEventListener('touchend', handleSliderChange);
+
+    console.log('[Filter Bar] Event listeners attached for input, change, and touchend');
   } catch (error) {
     console.error('[Filter Bar] Error setting up event listeners:', error);
   }
@@ -551,11 +589,13 @@ function injectFilterBar() {
 
 /**
  * Apply current filter threshold to all cards
+ * [2026-04-13] Improved selector to avoid matching parent containers
  */
 function applyFilterToAllCards() {
-  // Find all cards with badges
+  // Find all cards with badges (directly, not parents)
   // [2026-04-12 FIX] Added search gallery selector to support filter on search pages
-  const cardsWithBadges = document.querySelectorAll('[data-testid="hit-title"], .slider-item, [data-uia="ptrack-content"], .title-card-container, [data-uia="search-gallery-video-card"]');
+  // [2026-04-13] Use more specific selectors to avoid parent container matches
+  const cardsWithBadges = document.querySelectorAll('[data-testid="hit-title"]:not([data-testid*="ranking"]), .slider-item:not(.ranking-item), [data-uia="ptrack-content"]:not([data-uia*="ranking"]), .title-card-container:not(.ranking-container), [data-uia="search-gallery-video-card"]');
 
   cardsWithBadges.forEach((card) => {
     const badge = card.querySelector('.imdb-badge');
@@ -563,6 +603,7 @@ function applyFilterToAllCards() {
       const ratingText = badge.querySelector('span')?.textContent || '?';
       const rating = parseFloat(ratingText);
 
+      // [2026-04-13] Only apply filter if we have a valid numeric rating
       if (!isNaN(rating)) {
         applyFilterToCard(card, rating);
       }
