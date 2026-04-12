@@ -506,7 +506,7 @@ function injectFilterBar() {
         <input
           id="imdb-rating-slider"
           type="range"
-          min="0"
+          min="5"
           max="10"
           step="0.5"
           value="${DEFAULT_RATING_THRESHOLD}"
