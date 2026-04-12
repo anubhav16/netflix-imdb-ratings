@@ -8,8 +8,8 @@ const NETFLIX_SELECTORS = [
   // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
   '[data-uia="search-gallery-video-card"]'
 ];
-// [2026-04-12 FIX] Changed from 0 to 5 — users see filtering immediately on page load
-const DEFAULT_RATING_THRESHOLD = 5;
+// [2026-04-12 FIX] Changed from 0 to 5 — slider max is 5, users filter ≤5 or show everything at 0
+const DEFAULT_RATING_THRESHOLD = 0;
 const BADGE_SIZE_PX = 28;
 const BADGE_FONT_SIZE_PX = 11;
 const IMDB_YELLOW = '#F5C518';
@@ -506,8 +506,8 @@ function injectFilterBar() {
         <input
           id="imdb-rating-slider"
           type="range"
-          min="5"
-          max="10"
+          min="0"
+          max="5"
           step="0.5"
           value="${DEFAULT_RATING_THRESHOLD}"
           class="imdb-slider"
