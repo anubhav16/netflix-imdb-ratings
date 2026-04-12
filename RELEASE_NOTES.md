@@ -1,5 +1,36 @@
 # Release Notes
 
+## [0.3.0] - 2026-04-13
+
+### Added
+- **Rotten Tomatoes filter support** — Toggle between IMDb and RT ratings with dedicated filter modes
+- Filter mode toggle switch (IMDb | Rotten Tomatoes) in filter bar
+- RT badge styling with tomato red color (#E84D37) — IMDb uses gold (#F5C518)
+- Fetch both IMDb and RT scores from OMDb API in single request
+
+### Fixed
+- Filter bar now hidden on Netflix profile/account screens — only visible when browsing content
+- Exact filter label values: IMDb (≤5, 5.0+, 5.5+, ..., 9.0+), RT (0%, 10%, ..., 100%)
+- Redesigned filter UI with pill buttons matching Netflix aesthetic — replaced HTML range slider
+- Filtered-out cards now completely hidden with display: none — improves scroll performance and UX
+- Loading state improved — badges only show after rating fetched, no pulsating dots
+
+### Changed
+- Filter bar design: Added mode toggle (IMDb/RT) at top, pill button grid below for theme-specific thresholds
+- Badge styling: Different colors per mode (gold for IMDb, red for RT)
+- Filter application: Uses correct score per mode when comparing against threshold
+- Slider changed to pill buttons for cleaner, more discoverable UI
+
+### Technical
+- New storage key: `imdb_filter_mode` (persists selected filter type across sessions)
+- Extended fetchFromOMDb() to parse Rotten Tomatoes score from OMDb Ratings array
+- Updated injectBadge() to show correct rating and color based on currentFilterMode
+- Updated applyFilterToCard() to hide cards (display: none) instead of fade
+- Added shouldShowFilter() to conditionally hide filter on profile screens
+- Badge injection now happens AFTER rating fetched (no loading placeholders)
+
+---
+
 ## [0.2.8] - 2026-04-13
 
 ### Added

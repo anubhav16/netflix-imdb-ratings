@@ -37,6 +37,36 @@ const pendingTitles = new Set();
 let filterBar = null;
 let currentThreshold = DEFAULT_RATING_THRESHOLD;
 let filterBarInsertionRetries = 0; // [2026-04-12 FIX] Track retry attempts for filter bar
+// [2026-04-13] Filter mode: 'imdb' or 'rotten_tomatoes'
+let currentFilterMode = 'imdb';
+const FILTER_MODES = { imdb: 'IMDb', rotten_tomatoes: 'Rotten Tomatoes' };
+
+// [2026-04-13] Exact filter labels per mode
+const IMDB_FILTER_LABELS = {
+  0: '≤5',
+  5: '5.0+',
+  5.5: '5.5+',
+  6: '6.0+',
+  7: '7.0+',
+  7.5: '7.5+',
+  8: '8.0+',
+  8.5: '8.5+',
+  9: '9.0+'
+};
+
+const RT_FILTER_LABELS = {
+  0: '0%',
+  10: '10%',
+  20: '20%',
+  30: '30%',
+  40: '40%',
+  50: '50%',
+  60: '60%',
+  70: '70%',
+  80: '80%',
+  90: '90%',
+  100: '100%'
+};
 
 // Request queue management
 let requestQueue = [];
@@ -246,6 +276,23 @@ function normalizeTitle(title) {
   return title.toLowerCase().trim().replace(/\s+/g, '_');
 }
 
+/**
+ * Get filter labels for current mode
+ * [2026-04-13] Return exact labels per IMDb or RT mode
+ */
+function getCurrentFilterLabels() {
+  return currentFilterMode === 'imdb' ? IMDB_FILTER_LABELS : RT_FILTER_LABELS;
+}
+
+/**
+ * Get filter label for a specific threshold value
+ * [2026-04-13] Return display label matching threshold
+ */
+function getFilterLabel(threshold) {
+  const labels = getCurrentFilterLabels();
+  return labels[threshold] || `${threshold}`;
+}
+
 // ===== FILTER PREFERENCE STORAGE FUNCTIONS =====
 
 /**
@@ -258,6 +305,41 @@ async function saveFilterPreference(threshold) {
     console.log(`[Storage] Saved filter preference: ${threshold}`);
   } catch (error) {
     console.error('[Storage] Failed to save filter preference:', error);
+  }
+}
+
+/**
+ * Save filter mode (IMDb vs Rotten Tomatoes) to chrome.storage.sync
+ * [2026-04-13] Persist selected filter type across sessions
+ */
+async function saveFilterMode(mode) {
+  try {
+    await chrome.storage.sync.set({ imdb_filter_mode: mode });
+    console.log(`[Storage] Saved filter mode: ${mode}`);
+  } catch (error) {
+    console.error('[Storage] Failed to save filter mode:', error);
+  }
+}
+
+/**
+ * Restore filter mode from chrome.storage.sync
+ * [2026-04-13] Restore user's previously selected filter type
+ */
+async function restoreFilterMode() {
+  try {
+    const result = await chrome.storage.sync.get('imdb_filter_mode');
+    const mode = result.imdb_filter_mode;
+
+    if (mode && (mode === 'imdb' || mode === 'rotten_tomatoes')) {
+      console.log(`[Storage] Restored filter mode: ${mode}`);
+      return mode;
+    }
+
+    console.log(`[Storage] No saved filter mode found, using default: imdb`);
+    return 'imdb';
+  } catch (error) {
+    console.error('[Storage] Failed to restore filter mode:', error);
+    return 'imdb';
   }
 }
 
@@ -287,6 +369,33 @@ async function restoreFilterPreference() {
 
 // ===== DOM INJECTION FUNCTIONS =====
 
+/**
+ * Determine if filter bar should be shown on current page
+ * [2026-04-13] Hide filter on profile/account screens, show only when browsing
+ */
+function shouldShowFilter() {
+  const url = window.location.href;
+  const pathname = window.location.pathname;
+
+  // Hide filter on profile/account/preference/watch screens
+  // [2026-04-13] Exclude watch/playback screens where users shouldn't filter
+  if (
+    pathname.includes('/account') ||
+    pathname.includes('/preferences') ||
+    pathname.includes('/profiles') ||
+    pathname.includes('/watch') ||
+    pathname.includes('/browse/fullscreen') ||
+    url.includes('/choose') ||
+    url.includes('jbv=') || // Profile selector parameter
+    document.querySelector('[data-uia="profiles"]') // Profile selection screen
+  ) {
+    console.log('[Filter] Hiding filter bar on profile/account/watch screen');
+    return false;
+  }
+
+  return true;
+}
+
 function initializeExtension() {
   // Inject badges on initial page load
   // [2026-04-12 FIX] Increased from 500ms to 1000ms to wait for Netflix layout stabilization
@@ -294,11 +403,17 @@ function initializeExtension() {
   setTimeout(async () => {
     console.log('[Init] Page load initialization: injecting badges and filter bar');
     injectBadgesForVisibleCards();
-    injectFilterBar();
 
-    // [2026-04-13] Restore filter preference from chrome.storage.sync and apply
+    // [2026-04-13] Only show filter if browsing content, not on profile screens
+    if (shouldShowFilter()) {
+      injectFilterBar();
+    }
+
+    // [2026-04-13] Restore filter preference and mode from chrome.storage.sync
     const restoredThreshold = await restoreFilterPreference();
+    const restoredMode = await restoreFilterMode();
     currentThreshold = restoredThreshold;
+    currentFilterMode = restoredMode;
 
     // Apply the restored threshold immediately
     applyFilterToAllCards();
@@ -380,10 +495,8 @@ function injectBadgesForVisibleCards() {
 
     const title = extractTitle(card);
     if (title) {
-      // Create badge placeholder (will show loading state)
-      injectBadge(card, null);
-
-      // Fetch rating if not already pending
+      // [2026-04-13] Skip loading badge, only inject after data arrives
+      // Fetch rating if not already pending (badge will be injected on successful fetch)
       if (!pendingTitles.has(title)) {
         pendingTitles.add(title);
         requestIMDbRating(title, card);
@@ -563,11 +676,12 @@ function updateBadge(card, data) {
  * [2026-04-13] 0 = show all (≤5), 5 = show 5+, 6 = show 6+, etc.
  */
 function applyFilterToCard(card, rating) {
-  // 0 threshold means show all (including ≤5), otherwise fade if rating < threshold
+  // [2026-04-13] Hide filtered cards with display: none instead of fade
+  // 0 threshold means show all (including ≤5), otherwise hide if rating < threshold
   if (currentThreshold > 0 && rating < currentThreshold) {
-    card.classList.add('imdb-faded');
+    card.style.display = 'none';
   } else {
-    card.classList.remove('imdb-faded');
+    card.style.display = '';
   }
 }
 
@@ -587,9 +701,14 @@ function injectFilterBar() {
   // Create filter bar
   filterBar = document.createElement('div');
   filterBar.className = 'imdb-filter-bar';
+  // [2026-04-13] Added mode toggle buttons at top (IMDb | Rotten Tomatoes)
   filterBar.innerHTML = `
     <div class="imdb-filter-container">
-      <label for="imdb-rating-slider">Filter by IMDb Rating:</label>
+      <div class="imdb-mode-toggle">
+        <button class="imdb-mode-button imdb-mode-button-imdb ${currentFilterMode === 'imdb' ? 'active' : ''}" data-mode="imdb">IMDb</button>
+        <button class="imdb-mode-button imdb-mode-button-rt ${currentFilterMode === 'rotten_tomatoes' ? 'active' : ''}" data-mode="rotten_tomatoes">RT</button>
+      </div>
+      <label for="imdb-rating-slider">Filter by ${currentFilterMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:</label>
       <div class="imdb-slider-group">
         <input
           id="imdb-rating-slider"
@@ -600,7 +719,7 @@ function injectFilterBar() {
           value="${DEFAULT_RATING_THRESHOLD}"
           class="imdb-slider"
         />
-        <span class="imdb-filter-value">${DEFAULT_RATING_THRESHOLD === 0 ? '≤5' : DEFAULT_RATING_THRESHOLD.toFixed(1) + '+'}</span>
+        <span class="imdb-filter-value">${getFilterLabel(DEFAULT_RATING_THRESHOLD)}</span>
       </div>
     </div>
   `;
@@ -626,8 +745,8 @@ function injectFilterBar() {
     // 'input' fires on drag, 'change' fires on release, 'touchend' for mobile
     const handleSliderChange = (e) => {
       currentThreshold = parseFloat(e.target.value);
-      // [2026-04-13] Display "≤5" for 0, otherwise "X.X+"
-      valueDisplay.textContent = currentThreshold === 0 ? '≤5' : currentThreshold.toFixed(1) + '+';
+      // [2026-04-13] Use getFilterLabel for exact label per mode
+      valueDisplay.textContent = getFilterLabel(currentThreshold);
 
       // [2026-04-13] Save filter preference to chrome.storage.sync for persistence
       saveFilterPreference(currentThreshold);
@@ -643,7 +762,34 @@ function injectFilterBar() {
     slider.addEventListener('change', handleSliderChange);
     slider.addEventListener('touchend', handleSliderChange);
 
-    console.log('[Filter Bar] Event listeners attached for input, change, and touchend');
+    // [2026-04-13] Add mode toggle handlers
+    const modeButtons = filterBar.querySelectorAll('.imdb-mode-button');
+    modeButtons.forEach(button => {
+      button.addEventListener('click', async (e) => {
+        const newMode = e.target.getAttribute('data-mode');
+        if (newMode === currentFilterMode) return; // Already selected
+
+        // Update state and storage
+        currentFilterMode = newMode;
+        await saveFilterMode(newMode);
+
+        // Update UI: toggle active button
+        modeButtons.forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+
+        // Update label
+        const label = filterBar.querySelector('label');
+        if (label) {
+          label.textContent = `Filter by ${newMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:`;
+        }
+
+        // Re-render badges and reapply filter with new mode
+        applyFilterToAllCards();
+        console.log(`[Mode Toggle] Switched to ${newMode}`);
+      });
+    });
+
+    console.log('[Filter Bar] Event listeners attached for input, change, touchend, and mode toggle');
   } catch (error) {
     console.error('[Filter Bar] Error setting up event listeners:', error);
   }
