@@ -69,6 +69,17 @@
   animation: badgePulse 1.5s ease-in-out infinite;
 }
 
+/* [2026-04-13] Badge styling per filter mode */
+.imdb-badge-mode-imdb {
+  border-color: #F5C518;
+  color: #F5C518;
+}
+
+.imdb-badge-mode-rt {
+  border-color: #E84D37;
+  color: #E84D37;
+}
+
 @keyframes badgeFadeIn {
   from {
     opacity: 0;

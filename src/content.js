@@ -112,9 +112,11 @@ async function checkCache(title) {
 
       // Check if cache is still valid
       if (now - cached.timestamp < CACHE_TTL_MS) {
+        // [2026-04-13] Return both ratings from cache (backward compatible with old format)
         return {
           title: cached.title,
-          rating: cached.rating,
+          imdbRating: cached.imdbRating || cached.rating, // Fallback for old cache format
+          rtRating: cached.rtRating,
           year: cached.year,
           imdbId: cached.imdbId
         };
@@ -136,10 +138,12 @@ async function checkCache(title) {
 async function saveCache(title, data) {
   try {
     const cacheKey = CACHE_KEY_PREFIX + normalizeTitle(title);
+    // [2026-04-13] Cache both IMDb and RT ratings
     await chrome.storage.local.set({
       [cacheKey]: {
         title: data.title,
-        rating: data.rating,
+        imdbRating: data.imdbRating,
+        rtRating: data.rtRating,
         year: data.year,
         imdbId: data.imdbId,
         timestamp: Date.now()
@@ -259,11 +263,26 @@ async function tryOMDbSearch(title, type) {
  * Normalize OMDb API response to consistent format
  */
 function normalizeOMDbResponse(data) {
-  const rating = data.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A';
+  // [2026-04-13] Extract both IMDb and Rotten Tomatoes ratings
+  const imdbRating = data.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A';
+
+  // [2026-04-13] Parse Rotten Tomatoes score from Ratings array
+  let rtRating = 'N/A';
+  if (data.Ratings && Array.isArray(data.Ratings)) {
+    const rtEntry = data.Ratings.find(r => r.Source === 'Rotten Tomatoes');
+    if (rtEntry && rtEntry.Value) {
+      // Extract percentage from "85%" format to 85 integer
+      const rtPercentage = parseInt(rtEntry.Value.replace('%', ''));
+      if (!isNaN(rtPercentage)) {
+        rtRating = rtPercentage;
+      }
+    }
+  }
 
   return {
     title: data.Title || 'Unknown',
-    rating: rating,
+    imdbRating: imdbRating,
+    rtRating: rtRating,
     year: data.Year || null,
     imdbId: data.imdbID || null
   };
@@ -625,14 +644,37 @@ function injectBadge(card, data) {
   const badgeSize = cardWidth < 100 ? 'small' : 'large';
   badge.setAttribute('data-size', badgeSize);
 
+  // [2026-04-13] Store rating data on badge for re-rendering on mode toggle
+  if (data) {
+    badge.dataset.rating = JSON.stringify({
+      imdbRating: data.imdbRating,
+      rtRating: data.rtRating
+    });
+  }
+
   if (data === null) {
     // Loading state: pulsating dot (no text)
     // [2026-04-12] Show pulsating dot instead of "?" during loading
     badge.className += ' imdb-badge-loading';
     badge.innerHTML = '<span style="width: 6px; height: 6px; background: #F5C518; border-radius: 50%; display: block;"></span>';
   } else {
-    // Show rating
-    const ratingText = data.rating !== 'N/A' ? data.rating.substring(0, 4) : '?';
+    // [2026-04-13] Show rating based on filter mode
+    let ratingText = '?';
+
+    if (currentFilterMode === 'imdb') {
+      // IMDb mode: show imdbRating, add gold color class
+      if (data.imdbRating && data.imdbRating !== 'N/A') {
+        ratingText = data.imdbRating.substring(0, 4);
+        badge.className += ' imdb-badge-mode-imdb';
+      }
+    } else {
+      // RT mode: show rtRating as percentage, add red color class
+      if (data.rtRating && data.rtRating !== 'N/A') {
+        ratingText = `${data.rtRating}%`;
+        badge.className += ' imdb-badge-mode-rt';
+      }
+    }
+
     badge.innerHTML = `<span>${ratingText}</span>`;
   }
 
@@ -783,7 +825,10 @@ function injectFilterBar() {
           label.textContent = `Filter by ${newMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:`;
         }
 
-        // Re-render badges and reapply filter with new mode
+        // [2026-04-13] Re-render all badges with new mode colors/values
+        reRenderAllBadges();
+
+        // Re-apply filter with new mode (visibility may change based on different scores)
         applyFilterToAllCards();
         console.log(`[Mode Toggle] Switched to ${newMode}`);
       });
@@ -793,6 +838,49 @@ function injectFilterBar() {
   } catch (error) {
     console.error('[Filter Bar] Error setting up event listeners:', error);
   }
+}
+
+/**
+ * Re-render all badges on page with current filter mode
+ * [2026-04-13] Update badge colors and values when mode toggles
+ */
+function reRenderAllBadges() {
+  const NETFLIX_SELECTORS_TO_CHECK = [
+    '[data-testid="hit-title"]:not([data-testid*="ranking"])',
+    '.slider-item:not(.ranking-item)',
+    '[data-uia="ptrack-content"]:not([data-uia*="ranking"])',
+    '.title-card-container:not(.ranking-container)',
+    '[data-uia="search-gallery-video-card"]'
+  ];
+
+  let cards = [];
+  for (const selector of NETFLIX_SELECTORS_TO_CHECK) {
+    cards = document.querySelectorAll(selector);
+    if (cards.length > 0) break;
+  }
+
+  cards.forEach((card) => {
+    const badge = card.querySelector('.imdb-badge');
+    if (badge && badge.dataset.rating) {
+      // Remove old mode classes
+      badge.classList.remove('imdb-badge-mode-imdb', 'imdb-badge-mode-rt');
+
+      // Parse stored rating data
+      const ratingData = JSON.parse(badge.dataset.rating);
+
+      // Update badge with new mode
+      if (currentFilterMode === 'imdb') {
+        badge.className = 'imdb-badge imdb-badge-mode-imdb';
+        badge.setAttribute('data-size', badge.dataset.size);
+        badge.innerHTML = `<span>${ratingData.imdbRating || '?'}</span>`;
+      } else {
+        badge.className = 'imdb-badge imdb-badge-mode-rt';
+        badge.setAttribute('data-size', badge.dataset.size);
+        const rtText = ratingData.rtRating && ratingData.rtRating !== 'N/A' ? `${ratingData.rtRating}%` : '?';
+        badge.innerHTML = `<span>${rtText}</span>`;
+      }
+    }
+  });
 }
 
 /**
@@ -807,9 +895,18 @@ function applyFilterToAllCards() {
 
   cardsWithBadges.forEach((card) => {
     const badge = card.querySelector('.imdb-badge');
-    if (badge) {
-      const ratingText = badge.querySelector('span')?.textContent || '?';
-      const rating = parseFloat(ratingText);
+    if (badge && badge.dataset.rating) {
+      // [2026-04-13] Use stored rating data per mode, not badge text
+      const ratingData = JSON.parse(badge.dataset.rating);
+      let score = 'N/A';
+
+      if (currentFilterMode === 'imdb') {
+        score = ratingData.imdbRating;
+      } else {
+        score = ratingData.rtRating;
+      }
+
+      const rating = parseFloat(score);
 
       // [2026-04-13] Only apply filter if we have a valid numeric rating
       if (!isNaN(rating)) {
