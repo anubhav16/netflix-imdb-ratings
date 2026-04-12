@@ -8,7 +8,7 @@ const NETFLIX_SELECTORS = [
   // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
   '[data-uia="search-gallery-video-card"]'
 ];
-// [2026-04-13 FIX] Slider starts at 5 (show 5+ by default), ranges 5-9 with 0.5 step
+// [2026-04-13 FIX] Slider ranges 0-9: 0=show all (≤5), 5=show 5+, 6=show 6+, etc.
 const DEFAULT_RATING_THRESHOLD = 5;
 const BADGE_SIZE_PX = 28;
 const BADGE_FONT_SIZE_PX = 11;
@@ -310,7 +310,7 @@ function initializeExtension() {
       slider.value = restoredThreshold;
     }
     if (valueDisplay) {
-      valueDisplay.textContent = restoredThreshold.toFixed(1) + '+';
+      valueDisplay.textContent = restoredThreshold === 0 ? '≤5' : restoredThreshold.toFixed(1) + '+';
     }
 
     // [2026-04-13] Verify filter bar is in DOM and visible
@@ -560,10 +560,11 @@ function updateBadge(card, data) {
 
 /**
  * Apply filter to a card based on current threshold
- * [2026-04-13] Fade cards with rating < threshold (e.g., 6 means show 6.0 and above)
+ * [2026-04-13] 0 = show all (≤5), 5 = show 5+, 6 = show 6+, etc.
  */
 function applyFilterToCard(card, rating) {
-  if (rating < currentThreshold) {
+  // 0 threshold means show all (including ≤5), otherwise fade if rating < threshold
+  if (currentThreshold > 0 && rating < currentThreshold) {
     card.classList.add('imdb-faded');
   } else {
     card.classList.remove('imdb-faded');
@@ -593,13 +594,13 @@ function injectFilterBar() {
         <input
           id="imdb-rating-slider"
           type="range"
-          min="5"
+          min="0"
           max="9"
           step="0.5"
           value="${DEFAULT_RATING_THRESHOLD}"
           class="imdb-slider"
         />
-        <span class="imdb-filter-value">${DEFAULT_RATING_THRESHOLD.toFixed(1)}+</span>
+        <span class="imdb-filter-value">${DEFAULT_RATING_THRESHOLD === 0 ? '≤5' : DEFAULT_RATING_THRESHOLD.toFixed(1) + '+'}</span>
       </div>
     </div>
   `;
@@ -625,7 +626,8 @@ function injectFilterBar() {
     // 'input' fires on drag, 'change' fires on release, 'touchend' for mobile
     const handleSliderChange = (e) => {
       currentThreshold = parseFloat(e.target.value);
-      valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
+      // [2026-04-13] Display "≤5" for 0, otherwise "X.X+"
+      valueDisplay.textContent = currentThreshold === 0 ? '≤5' : currentThreshold.toFixed(1) + '+';
 
       // [2026-04-13] Save filter preference to chrome.storage.sync for persistence
       saveFilterPreference(currentThreshold);
