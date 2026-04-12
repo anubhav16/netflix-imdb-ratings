@@ -1,5 +1,26 @@
 # Release Notes
 
+## [0.2.5] - 2026-04-12
+
+### Fixed
+- Filter bar now visible on all Netflix pages (browse, search, etc.)
+- Filter bar positioned below Netflix header (not covering navigation)
+- Added support for IMDb ratings on Netflix search pages
+- CSS: Added `position: fixed; top: 70px` to fix z-index visibility issue
+- Filter bar insertion changed to `appendChild()` for correct DOM placement
+
+### Changed
+- .imdb-filter-bar CSS: Added fixed positioning below header (top: 70px)
+- injectFilterBar(): Changed from insertBefore to appendChild for correct placement
+- NETFLIX_SELECTORS: Added search gallery video card selector
+
+### Technical
+- Filter bar now uses fixed positioning with proper z-index layering
+- Works across all Netflix page layouts (browse, search, genres, etc.)
+- Search results now display IMDb ratings using correct selector
+
+---
+
 ## [0.2.4] - 2026-04-12
 
 ### Fixed

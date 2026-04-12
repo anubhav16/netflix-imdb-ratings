@@ -4,7 +4,9 @@ const NETFLIX_SELECTORS = [
   '[data-testid="hit-title"]:not([data-testid*="ranking"])',
   '.slider-item:not(.ranking-item)',
   '[data-uia="ptrack-content"]:not([data-uia*="ranking"])',
-  '.title-card-container:not(.ranking-container)'
+  '.title-card-container:not(.ranking-container)',
+  // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
+  '[data-uia="search-gallery-video-card"]'
 ];
 const DEFAULT_RATING_THRESHOLD = 0;
 const BADGE_SIZE_PX = 28;
@@ -514,26 +516,11 @@ function injectFilterBar() {
     </div>
   `;
 
-  // Insert at top of main content area (before first Netflix section)
-  const mainContent = document.querySelector('[data-uia="browse"]') || document.querySelector('[role="main"]');
-  const insertionSucceeded = mainContent && mainContent.insertBefore(filterBar, mainContent.firstChild);
-
-  if (!insertionSucceeded) {
-    // [2026-04-12 FIX] If primary insertion failed, try fallback and set up retry on MutationObserver
-    console.warn('[Filter Bar] Primary insertion failed, attempting fallback');
-    document.body.insertBefore(filterBar, document.body.firstChild);
-
-    // [2026-04-12 FIX] Schedule retry on next MutationObserver event (in case Netflix DOM loads later)
-    if (filterBarInsertionRetries < 3) {
-      filterBarInsertionRetries++;
-      setTimeout(() => {
-        // If filter bar still visible in fallback location, leave it there
-        if (document.body.contains(filterBar)) {
-          console.log('[Filter Bar] Filter bar successfully injected (fallback)');
-        }
-      }, 1000);
-    }
-  }
+  // [2026-04-12 FIX] Append filter bar to body with fixed positioning
+  // Fixed positioning places it below Netflix header (top: 70px in CSS)
+  // appendChild ensures it renders on top of content layer
+  document.body.appendChild(filterBar);
+  console.log('[Filter Bar] Filter bar injected with fixed positioning');
 
   // [2026-04-12 FIX] Add event listener with null checks to prevent crashes
   try {

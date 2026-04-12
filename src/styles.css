@@ -92,11 +92,16 @@
 /* ===== FILTER BAR STYLES ===== */
 
 .imdb-filter-bar {
+  /* [2026-04-12 FIX] Add fixed positioning below Netflix header (top: 70px accounts for ~60px header height) */
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
   background: rgba(20, 20, 20, 0.95);
   padding: 12px 20px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(245, 197, 24, 0.3);
-  /* [2026-04-12 FIX] Increased z-index from 999 to 10000 to ensure visibility above Netflix headers */
+  /* [2026-04-12 FIX] Increased z-index from 999 to 10000 to ensure visibility above Netflix content */
   z-index: 10000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
