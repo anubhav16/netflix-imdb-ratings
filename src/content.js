@@ -389,29 +389,51 @@ async function restoreFilterPreference() {
 // ===== DOM INJECTION FUNCTIONS =====
 
 /**
+ * Update filter bar visibility based on current page
+ * [2026-04-13] Shows/hides filter bar via CSS without removing from DOM
+ */
+function updateFilterBarVisibility() {
+  const filterBarElement = document.querySelector('.imdb-filter-bar');
+  if (!filterBarElement) {
+    return;
+  }
+
+  if (shouldShowFilter()) {
+    filterBarElement.style.display = 'block';
+    console.log('[Filter] Showing filter bar');
+  } else {
+    filterBarElement.style.display = 'none';
+    console.log('[Filter] Hiding filter bar');
+  }
+}
+
+/**
  * Determine if filter bar should be shown on current page
- * [2026-04-13] Hide filter on profile/account screens, show only when browsing
+ * [2026-04-13] Hide filter on profile screen (.list-profiles) and player screen (/watch/...)
+ * Show on browse, search, and other content browsing pages
  */
 function shouldShowFilter() {
-  const url = window.location.href;
   const pathname = window.location.pathname;
 
-  // Hide filter on profile/account/preference/watch screens
-  // [2026-04-13] Exclude watch/playback screens where users shouldn't filter
-  if (
-    pathname.includes('/account') ||
-    pathname.includes('/preferences') ||
-    pathname.includes('/profiles') ||
-    pathname.includes('/watch') ||
-    pathname.includes('/browse/fullscreen') ||
-    url.includes('/choose') ||
-    url.includes('jbv=') || // Profile selector parameter
-    document.querySelector('[data-uia="profiles"]') // Profile selection screen
-  ) {
-    console.log('[Filter] Hiding filter bar on profile/account/watch screen');
+  // [2026-04-13] Primary check: Hide on player screen (URL is most reliable)
+  if (pathname.startsWith('/watch/')) {
+    console.log('[Filter] Hiding filter on player screen: /watch/...');
     return false;
   }
 
+  // [2026-04-13] Secondary check: Hide on profile selection screen ("Who's watching?")
+  if (document.querySelector('.list-profiles')) {
+    console.log('[Filter] Hiding filter on profile selection screen');
+    return false;
+  }
+
+  // [2026-04-13] Hide on fullscreen browse
+  if (pathname.includes('/browse/fullscreen')) {
+    console.log('[Filter] Hiding filter on fullscreen browse');
+    return false;
+  }
+
+  // Show on all other pages: /browse, /search, etc.
   return true;
 }
 
@@ -464,27 +486,60 @@ function initializeExtension() {
     }
   }, 1000);
 
-  // [2026-04-13] Periodic check to ensure filter bar stays in DOM (re-inject if removed by Netflix)
+  // [2026-04-13] Periodic check: re-inject filter bar if removed AND should be shown
+  // Also update visibility based on current page (handles SPA navigation)
   setInterval(() => {
-    const filterBarElement = document.querySelector('.imdb-filter-bar');
-    if (!filterBarElement) {
-      console.log('[Periodic] Filter bar missing from DOM, re-injecting...');
-      injectFilterBar();
+    if (shouldShowFilter()) {
+      const filterBarElement = document.querySelector('.imdb-filter-bar');
+      if (!filterBarElement) {
+        console.log('[Periodic] Filter bar missing from DOM, re-injecting...');
+        injectFilterBar();
+      } else {
+        // Ensure it's visible if it exists
+        filterBarElement.style.display = 'block';
+      }
+    } else {
+      // Hide filter bar if we shouldn't be showing it
+      updateFilterBarVisibility();
     }
   }, 5000);
 
-  // Set up MutationObserver to handle Netflix's dynamic content loading
+  // [2026-04-13] Set up MutationObserver to handle Netflix's dynamic content loading + SPA navigation
   const observer = new MutationObserver((mutations) => {
     // Debounce mutations to avoid excessive processing
     clearTimeout(observer.debounceTimer);
     observer.debounceTimer = setTimeout(() => {
       injectBadgesForVisibleCards();
+      // [2026-04-13] Also update filter visibility on DOM changes (catches SPA navigation)
+      updateFilterBarVisibility();
     }, 300);
   });
 
   observer.observe(document.body, {
     childList: true,
     subtree: true
+  });
+
+  // [2026-04-13] Override history API for immediate SPA navigation detection
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+
+  history.pushState = function(...args) {
+    originalPushState.apply(history, args);
+    console.log('[SPA] pushState detected, updating filter visibility');
+    updateFilterBarVisibility();
+  };
+
+  history.replaceState = function(...args) {
+    originalReplaceState.apply(history, args);
+    console.log('[SPA] replaceState detected, updating filter visibility');
+    updateFilterBarVisibility();
+  };
+
+  // [2026-04-13] Listen to popstate for back button navigation
+  window.addEventListener('popstate', () => {
+    console.log('[SPA] popstate detected, updating filter visibility');
+    updateFilterBarVisibility();
   });
 }
 
