@@ -1,5 +1,27 @@
 # Release Notes
 
+## [0.2.7] - 2026-04-13
+
+### Fixed
+- Filter bar now re-injects if removed from DOM by Netflix (periodic check every 5s)
+- Slider interaction fixed: now responds to input, change, and touchend events (works in both directions)
+- Search page filter now works correctly when moving slider right-to-left
+- Improved selector specificity to exclude ranking containers when applying filters
+- Added diagnostic logging to help troubleshoot filter bar visibility issues
+
+### Changed
+- injectFilterBar(): Now checks DOM directly with querySelector instead of just checking memory reference
+- Added periodic setInterval() that verifies filter bar presence and re-injects if needed
+- Slider event handling: Added 'change' and 'touchend' listeners in addition to 'input'
+- applyFilterToAllCards(): Updated selectors to exclude ranking containers (`:not([data-testid*="ranking"])`)
+
+### Technical
+- Better resilience against Netflix DOM mutations that remove the filter bar
+- Diagnostic logging with full CSS property inspection on page load
+- Enhanced event listener coverage ensures slider works on mobile and desktop in all directions
+
+---
+
 ## [0.2.6] - 2026-04-12
 
 ### Fixed
