@@ -1,5 +1,44 @@
 # Release Notes
 
+## [0.3.2] - 2026-04-14
+
+### Changed (Phase 1: Filter UI Redesign)
+- **Floating Trigger Button** — Replaced full-width fixed filter bar with minimalist 48px circular button (bottom-right)
+  - Button shows mode indicator (◉ for IMDb gold, ● for RT red)
+  - Floating position keeps screen real estate, non-intrusive
+  - Mobile responsive: repositioned to avoid Netflix bottom controls
+  
+- **Bottom Sheet Panel** — New slide-up modal for filter controls
+  - Appears on trigger button click, slides up from bottom (300ms animation)
+  - Contains header ("Filter Content" + close X), mode toggle, pill buttons
+  - Scrollable content area for responsive height (60% desktop, 100% mobile)
+  - Semi-transparent dimmed backdrop with blur effect
+  - Closes on: X button click, outside tap (backdrop), Escape key
+
+- **Filter Logic Preserved** — All existing filter functionality intact
+  - Pill buttons still filter by rating threshold (IMDb/RT)
+  - Mode toggle still switches between IMDb and Rotten Tomatoes
+  - Preferences still persisted to chrome.storage.sync
+  - Badges on cards unchanged in styling/rendering
+
+### Fixed
+- Periodic re-injection check now correctly uses filterTriggerElement variable (was: filterBarElement)
+  - Prevents ReferenceError every 5 seconds in periodic interval
+  - Ensures filter trigger is always present on page
+
+### Technical
+- Event handlers: 6 listeners (trigger click, close click, backdrop click, Escape key, pill clicks, mode clicks)
+- Z-index hierarchy: trigger 10000 > sheet 9999
+- Animation: 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94) for snappy feel
+- Accessibility: ARIA labels, role="dialog", aria-modal="true", keyboard support
+- CSS: New styles for .imdb-filter-trigger, .imdb-bottom-sheet, .imdb-sheet-panel, etc.
+
+### Known
+- This is Phase 1 of 4-phase UI redesign
+- Phases 2-4 will: port filter logic, remove old code, add polish & accessibility, regression sweep
+
+---
+
 ## [0.3.1] - 2026-04-13
 
 ### Fixed

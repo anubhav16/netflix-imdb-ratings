@@ -486,17 +486,18 @@ function initializeExtension() {
     }
   }, 1000);
 
-  // [2026-04-13] Periodic check: re-inject filter bar if removed AND should be shown
+  // [2026-04-14] Periodic check: re-inject filter trigger if removed AND should be shown
+  // [2026-04-14] Updated to check for .imdb-filter-trigger (new floating button)
   // Also update visibility based on current page (handles SPA navigation)
   setInterval(() => {
     if (shouldShowFilter()) {
-      const filterBarElement = document.querySelector('.imdb-filter-bar');
-      if (!filterBarElement) {
-        console.log('[Periodic] Filter bar missing from DOM, re-injecting...');
+      const filterTriggerElement = document.querySelector('.imdb-filter-trigger');
+      if (!filterTriggerElement) {
+        console.log('[Periodic] Filter trigger missing from DOM, re-injecting...');
         injectFilterBar();
       } else {
         // Ensure it's visible if it exists
-        filterBarElement.style.display = 'block';
+        filterTriggerElement.style.display = 'block';
       }
     } else {
       // Hide filter bar if we shouldn't be showing it
@@ -661,8 +662,14 @@ async function requestIMDbRating(title, card) {
 
     if (response && response.rating && response.rating !== 'N/A') {
       console.log(`[IMDb] Updating badge with rating: ${response.rating}`);
-      // [2026-04-12] Track successful API call
-      trackAPICall(title, true, false);
+      // [2026-04-12] Track successful API call with full rating data for accuracy improvement
+      const ratingData = {
+        imdbRating: response.imdbRating || response.rating,
+        rtRating: response.rtRating,
+        year: response.year,
+        imdbId: response.imdbId
+      };
+      trackAPICall(title, true, false, ratingData, currentFilterMode);
       trackCacheHit(response.cached);
       updateBadge(card, response);
       applyFilterToCard(card, parseFloat(response.rating));
@@ -783,23 +790,38 @@ function applyFilterToCard(card, rating) {
 }
 
 /**
- * Inject filter control bar
- * [2026-04-13] Added robust event handling for all input types (input, change, touchend)
- * [2026-04-13] Added DOM presence check to re-inject if removed
+ * Inject floating trigger button + bottom sheet panel (replaces old fixed filter bar)
+ * [2026-04-14] New minimalist UI: floating button (bottom-right) → taps to reveal bottom sheet with pills
  */
 function injectFilterBar() {
-  // [2026-04-13] Check if filter bar is still in DOM (might have been removed by Netflix)
-  const existingFilterBar = document.querySelector('.imdb-filter-bar');
-  if (existingFilterBar) {
-    filterBar = existingFilterBar;
+  // [2026-04-14] Check if floating trigger already exists (might have been re-injected)
+  const existingTrigger = document.querySelector('.imdb-filter-trigger');
+  if (existingTrigger) {
     return;
   }
 
-  // Create filter bar
-  filterBar = document.createElement('div');
-  filterBar.className = 'imdb-filter-bar';
+  // [2026-04-14] Create floating trigger button (48px circle, bottom-right)
+  const triggerButton = document.createElement('button');
+  triggerButton.className = 'imdb-filter-trigger';
+  triggerButton.setAttribute('aria-label', 'Filter content');
+  triggerButton.setAttribute('title', 'Filter by rating');
 
-  // [2026-04-13] Generate pill buttons from label definitions
+  // [2026-04-14] Show mode icon: IMDb gold or RT red circle
+  const modeIcon = currentFilterMode === 'imdb' ? '◉' : '●';
+  const modeColor = currentFilterMode === 'imdb' ? '#F5C518' : '#E84D37';
+  triggerButton.innerHTML = `<span style="color: ${modeColor}; font-size: 20px;">${modeIcon}</span>`;
+
+  document.body.appendChild(triggerButton);
+  console.log('[Filter] Floating trigger button injected');
+
+  // [2026-04-14] Create bottom sheet panel (hidden, slides up on trigger click)
+  const bottomSheet = document.createElement('div');
+  bottomSheet.className = 'imdb-bottom-sheet';
+  bottomSheet.setAttribute('role', 'dialog');
+  bottomSheet.setAttribute('aria-label', 'Filter panel');
+  bottomSheet.setAttribute('aria-modal', 'true');
+
+  // [2026-04-14] Generate pill buttons from current mode labels
   const labels = getCurrentFilterLabels();
   const pillButtonsHTML = Object.entries(labels)
     .map(([threshold, label]) => {
@@ -808,34 +830,68 @@ function injectFilterBar() {
     })
     .join('');
 
-  filterBar.innerHTML = `
-    <div class="imdb-filter-container">
-      <div class="imdb-mode-toggle">
-        <button class="imdb-mode-button imdb-mode-button-imdb ${currentFilterMode === 'imdb' ? 'active' : ''}" data-mode="imdb">IMDb</button>
-        <button class="imdb-mode-button imdb-mode-button-rt ${currentFilterMode === 'rotten_tomatoes' ? 'active' : ''}" data-mode="rotten_tomatoes">RT</button>
+  // [2026-04-14] Build bottom sheet HTML with header, mode toggle, and pill buttons
+  bottomSheet.innerHTML = `
+    <div class="imdb-sheet-backdrop"></div>
+    <div class="imdb-sheet-panel">
+      <div class="imdb-sheet-header">
+        <h2>Filter Content</h2>
+        <button class="imdb-sheet-close" aria-label="Close filter panel">&times;</button>
       </div>
-      <label>Filter by ${currentFilterMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:</label>
-      <div class="imdb-pill-buttons">
-        ${pillButtonsHTML}
+
+      <div class="imdb-sheet-content">
+        <div class="imdb-mode-toggle">
+          <button class="imdb-mode-button imdb-mode-button-imdb ${currentFilterMode === 'imdb' ? 'active' : ''}" data-mode="imdb">IMDb</button>
+          <button class="imdb-mode-button imdb-mode-button-rt ${currentFilterMode === 'rotten_tomatoes' ? 'active' : ''}" data-mode="rotten_tomatoes">RT</button>
+        </div>
+
+        <div class="imdb-pill-buttons">
+          ${pillButtonsHTML}
+        </div>
       </div>
     </div>
   `;
 
-  // [2026-04-12 FIX] Append filter bar to body with fixed positioning
-  // Fixed positioning places it below Netflix header (top: 70px in CSS)
-  // appendChild ensures it renders on top of content layer
-  document.body.appendChild(filterBar);
-  console.log('[Filter Bar] Filter bar injected with fixed positioning');
+  document.body.appendChild(bottomSheet);
+  console.log('[Filter] Bottom sheet panel injected');
 
-  // [2026-04-13] Add event listeners for pill buttons and mode toggle
+  // [2026-04-14] Wire open/close handlers
   try {
-    // [2026-04-13] Handle pill button clicks - each button has data-threshold attribute
-    const pillButtons = filterBar.querySelectorAll('.imdb-pill-button');
-    if (pillButtons.length === 0) {
-      console.error('[Filter Bar] No pill buttons found');
-      return;
-    }
+    // Open sheet on trigger button click
+    triggerButton.addEventListener('click', () => {
+      bottomSheet.classList.add('open');
+      document.body.style.overflow = 'hidden'; // [2026-04-14] Prevent scrolling when sheet open
+      console.log('[Filter] Bottom sheet opened');
+    });
 
+    // Close sheet on X button click
+    const closeButton = bottomSheet.querySelector('.imdb-sheet-close');
+    closeButton.addEventListener('click', () => {
+      bottomSheet.classList.remove('open');
+      document.body.style.overflow = '';
+      console.log('[Filter] Bottom sheet closed');
+    });
+
+    // Close sheet on backdrop click (outside panel)
+    const backdrop = bottomSheet.querySelector('.imdb-sheet-backdrop');
+    backdrop.addEventListener('click', () => {
+      bottomSheet.classList.remove('open');
+      document.body.style.overflow = '';
+      console.log('[Filter] Bottom sheet closed (backdrop click)');
+    });
+
+    // [2026-04-14] Close sheet on Escape key
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && bottomSheet.classList.contains('open')) {
+        bottomSheet.classList.remove('open');
+        document.body.style.overflow = '';
+        console.log('[Filter] Bottom sheet closed (Escape key)');
+      }
+    };
+    document.addEventListener('keydown', handleEscapeKey);
+
+    // [2026-04-14] Handle pill button clicks
+    const pillButtons = bottomSheet.querySelectorAll('.imdb-pill-button');
     const handlePillButtonClick = (e) => {
       const threshold = parseFloat(e.target.getAttribute('data-threshold'));
       currentThreshold = threshold;
@@ -859,8 +915,8 @@ function injectFilterBar() {
       button.addEventListener('click', handlePillButtonClick);
     });
 
-    // [2026-04-13] Add mode toggle handlers
-    const modeButtons = filterBar.querySelectorAll('.imdb-mode-button');
+    // [2026-04-14] Handle mode toggle clicks
+    const modeButtons = bottomSheet.querySelectorAll('.imdb-mode-button');
     modeButtons.forEach(button => {
       button.addEventListener('click', async (e) => {
         const newMode = e.target.getAttribute('data-mode');
@@ -870,15 +926,14 @@ function injectFilterBar() {
         currentFilterMode = newMode;
         await saveFilterMode(newMode);
 
+        // [2026-04-14] Update trigger button icon color
+        const modeIcon = newMode === 'imdb' ? '◉' : '●';
+        const modeColor = newMode === 'imdb' ? '#F5C518' : '#E84D37';
+        triggerButton.innerHTML = `<span style="color: ${modeColor}; font-size: 20px;">${modeIcon}</span>`;
+
         // Update UI: toggle active button
         modeButtons.forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
-
-        // Update label
-        const label = filterBar.querySelector('label');
-        if (label) {
-          label.textContent = `Filter by ${newMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:`;
-        }
 
         // [2026-04-13] Rebuild pill buttons with new mode labels
         const newLabels = getCurrentFilterLabels();
@@ -889,11 +944,11 @@ function injectFilterBar() {
           })
           .join('');
 
-        const pillButtonsContainer = filterBar.querySelector('.imdb-pill-buttons');
+        const pillButtonsContainer = bottomSheet.querySelector('.imdb-pill-buttons');
         if (pillButtonsContainer) {
           pillButtonsContainer.innerHTML = newPillButtonsHTML;
           // [2026-04-13] Re-attach click listeners to new pill buttons
-          const newPillButtons = filterBar.querySelectorAll('.imdb-pill-button');
+          const newPillButtons = bottomSheet.querySelectorAll('.imdb-pill-button');
           newPillButtons.forEach(button => {
             button.addEventListener('click', handlePillButtonClick);
           });
@@ -908,9 +963,9 @@ function injectFilterBar() {
       });
     });
 
-    console.log('[Filter Bar] Event listeners attached for pill buttons and mode toggle');
+    console.log('[Filter] Event listeners attached for floating trigger and bottom sheet');
   } catch (error) {
-    console.error('[Filter Bar] Error setting up event listeners:', error);
+    console.error('[Filter] Error setting up event listeners:', error);
   }
 }
 

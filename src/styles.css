@@ -100,10 +100,156 @@
   }
 }
 
-/* ===== FILTER BAR STYLES ===== */
+/* ===== FLOATING TRIGGER BUTTON STYLES ===== */
+/* [2026-04-14] Minimalist floating button: 48px circle, bottom-right, fixed position */
 
+.imdb-filter-trigger {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 197, 24, 0.4);
+  background: rgba(20, 20, 20, 0.9);
+  cursor: pointer;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+  padding: 0;
+  font-size: 0;
+}
+
+.imdb-filter-trigger:hover {
+  border-color: rgba(245, 197, 24, 0.8);
+  box-shadow: 0 6px 16px rgba(245, 197, 24, 0.3);
+  transform: scale(1.08);
+}
+
+.imdb-filter-trigger:active {
+  transform: scale(0.96);
+}
+
+/* [2026-04-14] Responsive: move button up on mobile to avoid conflicts with Netflix controls */
+@media (max-width: 600px) {
+  .imdb-filter-trigger {
+    bottom: 80px;
+    right: 16px;
+  }
+}
+
+/* ===== BOTTOM SHEET PANEL STYLES ===== */
+/* [2026-04-14] Slide-up panel with backdrop, responsive height (60% desktop, full mobile) */
+
+.imdb-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 9999;
+  pointer-events: none; /* [2026-04-14] Backdrop doesn't capture clicks unless sheet is open */
+}
+
+.imdb-bottom-sheet.open {
+  pointer-events: auto;
+}
+
+.imdb-sheet-backdrop {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.imdb-bottom-sheet.open .imdb-sheet-backdrop {
+  opacity: 1;
+}
+
+.imdb-sheet-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(30, 30, 30, 0.98);
+  border-top: 1px solid rgba(245, 197, 24, 0.2);
+  border-radius: 12px 12px 0 0;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.imdb-bottom-sheet.open .imdb-sheet-panel {
+  transform: translateY(0);
+}
+
+/* [2026-04-14] Header with title and close button */
+.imdb-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.15);
+  flex-shrink: 0;
+}
+
+.imdb-sheet-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #f5f5f5;
+  letter-spacing: 0.3px;
+}
+
+.imdb-sheet-close {
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+  line-height: 1;
+}
+
+.imdb-sheet-close:hover {
+  color: #f5f5f5;
+}
+
+/* [2026-04-14] Scrollable content area with pills and mode toggle */
+.imdb-sheet-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* [2026-04-14] Mobile: full height sheet */
+@media (max-width: 600px) {
+  .imdb-sheet-panel {
+    max-height: 100vh;
+  }
+}
+
+/* ===== FILTER BAR STYLES (LEGACY - KEPT FOR REFERENCE) ===== */
+/* [2026-04-14] Old fixed bar styles deprecated in favor of floating trigger + bottom sheet */
+/* Keeping commented out to avoid confusion with new UI */
+
+/*
 .imdb-filter-bar {
-  /* [2026-04-12 FIX] Add fixed positioning below Netflix header (top: 70px accounts for ~60px header height) */
   position: fixed;
   top: 70px;
   left: 0;
@@ -112,7 +258,6 @@
   padding: 12px 20px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(245, 197, 24, 0.3);
-  /* [2026-04-12 FIX] Increased z-index from 999 to 10000 to ensure visibility above Netflix content */
   z-index: 10000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -135,12 +280,10 @@
   letter-spacing: 0.5px;
 }
 
-/* [2026-04-13] Top row: mode toggle + label on left */
 .imdb-filter-container > .imdb-mode-toggle {
   align-self: flex-start;
 }
 
-/* [2026-04-13] Pill buttons row full width */
 .imdb-filter-container > .imdb-pill-buttons {
   width: 100%;
 }
@@ -195,6 +338,7 @@
   background: #FFD700;
   box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
 }
+*/
 
 /* ===== PILL BUTTON STYLES ===== */
 /* [2026-04-13] Replace range slider with pill buttons matching Netflix aesthetic */
