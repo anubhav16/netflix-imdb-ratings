@@ -1,5 +1,22 @@
 # Release Notes
 
+## [0.2.6] - 2026-04-12
+
+### Fixed
+- Filter bar default threshold changed from 0 to 5 — users see filtering immediately without manual adjustment
+- Search page slider now works correctly — added search gallery video card selector to filter logic
+- Filter properly fades/unfades cards on search pages when slider moves (both directions)
+
+### Changed
+- DEFAULT_RATING_THRESHOLD: 0 → 5 (users see "5.0+" by default, only ratings ≥5 visible on load)
+- applyFilterToAllCards(): Updated selector to include `[data-uia="search-gallery-video-card"]` for search support
+
+### Technical
+- Selector consolidation in progress (Phase 2 will further consolidate duplicate selectors)
+- Improved search page UX — filter now functional across all Netflix page types
+
+---
+
 ## [0.2.5] - 2026-04-12
 
 ### Fixed

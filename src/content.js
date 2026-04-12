@@ -8,7 +8,8 @@ const NETFLIX_SELECTORS = [
   // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
   '[data-uia="search-gallery-video-card"]'
 ];
-const DEFAULT_RATING_THRESHOLD = 0;
+// [2026-04-12 FIX] Changed from 0 to 5 — users see filtering immediately on page load
+const DEFAULT_RATING_THRESHOLD = 5;
 const BADGE_SIZE_PX = 28;
 const BADGE_FONT_SIZE_PX = 11;
 const IMDB_YELLOW = '#F5C518';
@@ -553,7 +554,8 @@ function injectFilterBar() {
  */
 function applyFilterToAllCards() {
   // Find all cards with badges
-  const cardsWithBadges = document.querySelectorAll('[data-testid="hit-title"], .slider-item, [data-uia="ptrack-content"], .title-card-container');
+  // [2026-04-12 FIX] Added search gallery selector to support filter on search pages
+  const cardsWithBadges = document.querySelectorAll('[data-testid="hit-title"], .slider-item, [data-uia="ptrack-content"], .title-card-container, [data-uia="search-gallery-video-card"]');
 
   cardsWithBadges.forEach((card) => {
     const badge = card.querySelector('.imdb-badge');
