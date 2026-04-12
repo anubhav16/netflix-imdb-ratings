@@ -1,5 +1,30 @@
 # Release Notes
 
+## [0.3.1] - 2026-04-13
+
+### Fixed
+- Filter bar now correctly hidden on profile selection screen ("Who's watching?")
+- Filter bar correctly hidden on player screen (`/watch/...`)
+- Filter bar correctly shown on browse and search pages
+- SPA navigation detection: filter bar visibility updates immediately on route changes (pushState, replaceState, popstate)
+- Periodic re-injection (5s interval) now respects `shouldShowFilter()` — won't re-appear on profile/player screens
+
+### Changed
+- `shouldShowFilter()`: Simplified and fixed detection logic
+  - Primary check: `pathname.startsWith('/watch/')` for player screen
+  - Secondary check: `document.querySelector('.list-profiles')` for profile selection
+  - Removed overly broad checks (`/profiles`, `jbv=`, `[data-uia="profiles"]`) that were over-suppressing
+- Added `updateFilterBarVisibility()` helper: sets `display: none/block` without DOM removal
+- `setInterval` now gated on `shouldShowFilter()` before re-injection
+- MutationObserver now calls `updateFilterBarVisibility()` in debounce callback
+
+### Technical
+- History API override catches all SPA route changes (Netflix uses pushState/replaceState heavily)
+- `popstate` listener handles back button navigation
+- `display: none` approach is faster than DOM removal and allows instant toggle back when returning to browse
+
+---
+
 ## [0.3.0] - 2026-04-13
 
 ### Added
