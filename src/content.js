@@ -743,25 +743,25 @@ function injectFilterBar() {
   // Create filter bar
   filterBar = document.createElement('div');
   filterBar.className = 'imdb-filter-bar';
-  // [2026-04-13] Added mode toggle buttons at top (IMDb | Rotten Tomatoes)
+
+  // [2026-04-13] Generate pill buttons from label definitions
+  const labels = getCurrentFilterLabels();
+  const pillButtonsHTML = Object.entries(labels)
+    .map(([threshold, label]) => {
+      const isActive = parseFloat(threshold) === currentThreshold ? 'active' : '';
+      return `<button class="imdb-pill-button ${isActive}" data-threshold="${threshold}">${label}</button>`;
+    })
+    .join('');
+
   filterBar.innerHTML = `
     <div class="imdb-filter-container">
       <div class="imdb-mode-toggle">
         <button class="imdb-mode-button imdb-mode-button-imdb ${currentFilterMode === 'imdb' ? 'active' : ''}" data-mode="imdb">IMDb</button>
         <button class="imdb-mode-button imdb-mode-button-rt ${currentFilterMode === 'rotten_tomatoes' ? 'active' : ''}" data-mode="rotten_tomatoes">RT</button>
       </div>
-      <label for="imdb-rating-slider">Filter by ${currentFilterMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:</label>
-      <div class="imdb-slider-group">
-        <input
-          id="imdb-rating-slider"
-          type="range"
-          min="0"
-          max="9"
-          step="0.5"
-          value="${DEFAULT_RATING_THRESHOLD}"
-          class="imdb-slider"
-        />
-        <span class="imdb-filter-value">${getFilterLabel(DEFAULT_RATING_THRESHOLD)}</span>
+      <label>Filter by ${currentFilterMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:</label>
+      <div class="imdb-pill-buttons">
+        ${pillButtonsHTML}
       </div>
     </div>
   `;
@@ -772,37 +772,37 @@ function injectFilterBar() {
   document.body.appendChild(filterBar);
   console.log('[Filter Bar] Filter bar injected with fixed positioning');
 
-  // [2026-04-12 FIX] Add event listener with null checks to prevent crashes
+  // [2026-04-13] Add event listeners for pill buttons and mode toggle
   try {
-    const slider = filterBar.querySelector('.imdb-slider');
-    const valueDisplay = filterBar.querySelector('.imdb-filter-value');
-
-    // [2026-04-12 FIX] Defensive null checks prevent TypeError if querySelector fails
-    if (!slider || !valueDisplay) {
-      console.error('[Filter Bar] Failed to find slider or value display elements', { slider: !!slider, valueDisplay: !!valueDisplay });
+    // [2026-04-13] Handle pill button clicks - each button has data-threshold attribute
+    const pillButtons = filterBar.querySelectorAll('.imdb-pill-button');
+    if (pillButtons.length === 0) {
+      console.error('[Filter Bar] No pill buttons found');
       return;
     }
 
-    // [2026-04-13] Handle all input events to ensure slider works in both directions
-    // 'input' fires on drag, 'change' fires on release, 'touchend' for mobile
-    const handleSliderChange = (e) => {
-      currentThreshold = parseFloat(e.target.value);
-      // [2026-04-13] Use getFilterLabel for exact label per mode
-      valueDisplay.textContent = getFilterLabel(currentThreshold);
+    const handlePillButtonClick = (e) => {
+      const threshold = parseFloat(e.target.getAttribute('data-threshold'));
+      currentThreshold = threshold;
 
       // [2026-04-13] Save filter preference to chrome.storage.sync for persistence
       saveFilterPreference(currentThreshold);
 
+      // [2026-04-13] Update active state on buttons
+      pillButtons.forEach(btn => btn.classList.remove('active'));
+      e.target.classList.add('active');
+
       // [2026-04-12] Track filter usage
-      trackFeatureUse('filter-slider');
+      trackFeatureUse('filter-pill-button');
 
       // Apply filter to all visible cards
       applyFilterToAllCards();
+      console.log(`[Pill Button] Threshold updated to ${currentThreshold}`);
     };
 
-    slider.addEventListener('input', handleSliderChange);
-    slider.addEventListener('change', handleSliderChange);
-    slider.addEventListener('touchend', handleSliderChange);
+    pillButtons.forEach(button => {
+      button.addEventListener('click', handlePillButtonClick);
+    });
 
     // [2026-04-13] Add mode toggle handlers
     const modeButtons = filterBar.querySelectorAll('.imdb-mode-button');
@@ -825,6 +825,25 @@ function injectFilterBar() {
           label.textContent = `Filter by ${newMode === 'imdb' ? 'IMDb Rating' : 'Rotten Tomatoes'}:`;
         }
 
+        // [2026-04-13] Rebuild pill buttons with new mode labels
+        const newLabels = getCurrentFilterLabels();
+        const newPillButtonsHTML = Object.entries(newLabels)
+          .map(([threshold, label]) => {
+            const isActive = parseFloat(threshold) === currentThreshold ? 'active' : '';
+            return `<button class="imdb-pill-button ${isActive}" data-threshold="${threshold}">${label}</button>`;
+          })
+          .join('');
+
+        const pillButtonsContainer = filterBar.querySelector('.imdb-pill-buttons');
+        if (pillButtonsContainer) {
+          pillButtonsContainer.innerHTML = newPillButtonsHTML;
+          // [2026-04-13] Re-attach click listeners to new pill buttons
+          const newPillButtons = filterBar.querySelectorAll('.imdb-pill-button');
+          newPillButtons.forEach(button => {
+            button.addEventListener('click', handlePillButtonClick);
+          });
+        }
+
         // [2026-04-13] Re-render all badges with new mode colors/values
         reRenderAllBadges();
 
@@ -834,7 +853,7 @@ function injectFilterBar() {
       });
     });
 
-    console.log('[Filter Bar] Event listeners attached for input, change, touchend, and mode toggle');
+    console.log('[Filter Bar] Event listeners attached for pill buttons and mode toggle');
   } catch (error) {
     console.error('[Filter Bar] Error setting up event listeners:', error);
   }

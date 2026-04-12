@@ -118,18 +118,31 @@
 }
 
 .imdb-filter-container {
-  max-width: 400px;
   display: flex;
-  align-items: center;
-  gap: 15px;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .imdb-filter-container label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #f5f5f5;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
   white-space: nowrap;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* [2026-04-13] Top row: mode toggle + label on left */
+.imdb-filter-container > .imdb-mode-toggle {
+  align-self: flex-start;
+}
+
+/* [2026-04-13] Pill buttons row full width */
+.imdb-filter-container > .imdb-pill-buttons {
+  width: 100%;
 }
 
 .imdb-slider-group {
@@ -183,12 +196,88 @@
   box-shadow: 0 2px 8px rgba(245, 197, 24, 0.5);
 }
 
-.imdb-filter-value {
-  font-size: 13px;
-  font-weight: 600;
+/* ===== PILL BUTTON STYLES ===== */
+/* [2026-04-13] Replace range slider with pill buttons matching Netflix aesthetic */
+
+.imdb-pill-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.imdb-pill-button {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  background: rgba(20, 20, 20, 0.8);
+  color: #f5f5f5;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.imdb-pill-button:hover {
+  border-color: rgba(245, 197, 24, 0.6);
+  background: rgba(40, 40, 40, 0.9);
   color: #F5C518;
-  min-width: 40px;
-  text-align: right;
+}
+
+/* [2026-04-13] Active pill button state per filter mode */
+.imdb-pill-button.active {
+  border-color: #F5C518;
+  background: rgba(245, 197, 24, 0.15);
+  color: #F5C518;
+  font-weight: 600;
+}
+
+.imdb-pill-buttons[data-mode="rotten_tomatoes"] .imdb-pill-button.active {
+  border-color: #E84D37;
+  background: rgba(232, 77, 55, 0.15);
+  color: #E84D37;
+}
+
+/* ===== MODE TOGGLE BUTTON STYLES ===== */
+/* [2026-04-13] IMDb/RT mode toggle at top of filter bar */
+
+.imdb-mode-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.imdb-mode-button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  background: transparent;
+  color: #999;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.imdb-mode-button:hover {
+  border-color: rgba(245, 197, 24, 0.6);
+  color: #f5f5f5;
+}
+
+.imdb-mode-button.active {
+  border-color: #F5C518;
+  color: #F5C518;
+  background: rgba(245, 197, 24, 0.1);
+  font-weight: 600;
+}
+
+.imdb-mode-button-rt.active {
+  border-color: #E84D37;
+  color: #E84D37;
+  background: rgba(232, 77, 55, 0.1);
 }
 
 /* ===== FILTER EFFECT STYLES ===== */
