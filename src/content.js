@@ -8,8 +8,8 @@ const NETFLIX_SELECTORS = [
   // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
   '[data-uia="search-gallery-video-card"]'
 ];
-// [2026-04-12 FIX] Changed from 0 to 5 — slider max is 5, users filter ≤5 or show everything at 0
-const DEFAULT_RATING_THRESHOLD = 0;
+// [2026-04-13 FIX] Slider starts at 5 (show 5+ by default), ranges 5-9 with 0.5 step
+const DEFAULT_RATING_THRESHOLD = 5;
 const BADGE_SIZE_PX = 28;
 const BADGE_FONT_SIZE_PX = 11;
 const IMDB_YELLOW = '#F5C518';
@@ -301,9 +301,7 @@ function initializeExtension() {
     currentThreshold = restoredThreshold;
 
     // Apply the restored threshold immediately
-    if (restoredThreshold > 0) {
-      applyFilterToAllCards();
-    }
+    applyFilterToAllCards();
 
     // Update slider to show restored value
     const slider = document.querySelector('.imdb-slider');
@@ -562,9 +560,10 @@ function updateBadge(card, data) {
 
 /**
  * Apply filter to a card based on current threshold
+ * [2026-04-13] Fade cards with rating < threshold (e.g., 6 means show 6.0 and above)
  */
 function applyFilterToCard(card, rating) {
-  if (currentThreshold > 0 && rating < currentThreshold) {
+  if (rating < currentThreshold) {
     card.classList.add('imdb-faded');
   } else {
     card.classList.remove('imdb-faded');
@@ -594,8 +593,8 @@ function injectFilterBar() {
         <input
           id="imdb-rating-slider"
           type="range"
-          min="0"
-          max="5"
+          min="5"
+          max="9"
           step="0.5"
           value="${DEFAULT_RATING_THRESHOLD}"
           class="imdb-slider"
