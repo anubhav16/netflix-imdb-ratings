@@ -392,20 +392,8 @@ async function restoreFilterPreference() {
  * Update filter bar visibility based on current page
  * [2026-04-13] Shows/hides filter bar via CSS without removing from DOM
  */
-function updateFilterBarVisibility() {
-  const filterBarElement = document.querySelector('.imdb-filter-bar');
-  if (!filterBarElement) {
-    return;
-  }
-
-  if (shouldShowFilter()) {
-    filterBarElement.style.display = 'block';
-    console.log('[Filter] Showing filter bar');
-  } else {
-    filterBarElement.style.display = 'none';
-    console.log('[Filter] Hiding filter bar');
-  }
-}
+// [2026-04-14 REMOVED] updateFilterBarVisibility() - deprecated legacy function for old fixed filter bar
+// The new floating trigger button is always visible and handles its own visibility via shouldShowFilter()
 
 /**
  * Determine if filter bar should be shown on current page
@@ -459,31 +447,8 @@ function initializeExtension() {
     // Apply the restored threshold immediately
     applyFilterToAllCards();
 
-    // Update slider to show restored value
-    const slider = document.querySelector('.imdb-slider');
-    const valueDisplay = document.querySelector('.imdb-filter-value');
-    if (slider) {
-      slider.value = restoredThreshold;
-    }
-    if (valueDisplay) {
-      valueDisplay.textContent = restoredThreshold === 0 ? '≤5' : restoredThreshold.toFixed(1) + '+';
-    }
-
-    // [2026-04-13] Verify filter bar is in DOM and visible
-    const filterBarElement = document.querySelector('.imdb-filter-bar');
-    if (filterBarElement) {
-      const styles = window.getComputedStyle(filterBarElement);
-      console.log('[Init] Filter bar CSS computed:', {
-        display: styles.display,
-        position: styles.position,
-        zIndex: styles.zIndex,
-        top: styles.top,
-        visibility: styles.visibility,
-        opacity: styles.opacity
-      });
-    } else {
-      console.warn('[Init] Filter bar element not found in DOM after injection');
-    }
+    // [2026-04-14 REMOVED] Slider value update code - no longer needed with floating trigger + bottom sheet
+    // The new bottom sheet handles pill button active state automatically
   }, 1000);
 
   // [2026-04-14] Periodic check: re-inject filter trigger if removed AND should be shown
@@ -500,8 +465,11 @@ function initializeExtension() {
         filterTriggerElement.style.display = 'block';
       }
     } else {
-      // Hide filter bar if we shouldn't be showing it
-      updateFilterBarVisibility();
+      // [2026-04-14] Hide trigger if we shouldn't be showing filter on this page
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) {
+        trigger.style.display = 'none';
+      }
     }
   }, 5000);
 
@@ -511,8 +479,11 @@ function initializeExtension() {
     clearTimeout(observer.debounceTimer);
     observer.debounceTimer = setTimeout(() => {
       injectBadgesForVisibleCards();
-      // [2026-04-13] Also update filter visibility on DOM changes (catches SPA navigation)
-      updateFilterBarVisibility();
+      // [2026-04-14] Update trigger visibility on DOM changes (catches SPA navigation)
+      if (!shouldShowFilter()) {
+        const trigger = document.querySelector('.imdb-filter-trigger');
+        if (trigger) trigger.style.display = 'none';
+      }
     }, 300);
   });
 
@@ -528,19 +499,40 @@ function initializeExtension() {
   history.pushState = function(...args) {
     originalPushState.apply(history, args);
     console.log('[SPA] pushState detected, updating filter visibility');
-    updateFilterBarVisibility();
+    // [2026-04-14] Update trigger visibility on SPA navigation
+    if (!shouldShowFilter()) {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = 'none';
+    } else {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = '';
+    }
   };
 
   history.replaceState = function(...args) {
     originalReplaceState.apply(history, args);
     console.log('[SPA] replaceState detected, updating filter visibility');
-    updateFilterBarVisibility();
+    // [2026-04-14] Update trigger visibility on SPA navigation
+    if (!shouldShowFilter()) {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = 'none';
+    } else {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = '';
+    }
   };
 
-  // [2026-04-13] Listen to popstate for back button navigation
+  // [2026-04-14] Listen to popstate for back button navigation
   window.addEventListener('popstate', () => {
     console.log('[SPA] popstate detected, updating filter visibility');
-    updateFilterBarVisibility();
+    // [2026-04-14] Update trigger visibility on back button
+    if (!shouldShowFilter()) {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = 'none';
+    } else {
+      const trigger = document.querySelector('.imdb-filter-trigger');
+      if (trigger) trigger.style.display = '';
+    }
   });
 }
 
@@ -660,19 +652,20 @@ async function requestIMDbRating(title, card) {
     console.log(`[IMDb] Response for ${title}:`, response);
     console.log(`[IMDb] Has rating field:`, response?.rating, `Type:`, typeof response?.rating);
 
-    if (response && response.rating && response.rating !== 'N/A') {
-      console.log(`[IMDb] Updating badge with rating: ${response.rating}`);
+    // [2026-04-13 FIX] Check imdbRating field (not rating) — normalizeOMDbResponse returns imdbRating
+    if (response && response.imdbRating && response.imdbRating !== 'N/A') {
+      console.log(`[IMDb] Updating badge with rating: ${response.imdbRating}`);
       // [2026-04-12] Track successful API call with full rating data for accuracy improvement
       const ratingData = {
-        imdbRating: response.imdbRating || response.rating,
+        imdbRating: response.imdbRating,
         rtRating: response.rtRating,
         year: response.year,
         imdbId: response.imdbId
       };
       trackAPICall(title, true, false, ratingData, currentFilterMode);
       trackCacheHit(response.cached);
-      updateBadge(card, response);
-      applyFilterToCard(card, parseFloat(response.rating));
+      injectBadge(card, response);
+      applyFilterToCard(card, parseFloat(response.imdbRating));
     } else {
       // [2026-04-12] Remove badge for N/A results, track as blank
       console.log(`[IMDb] No rating found, removing badge. Response was:`, JSON.stringify(response));
@@ -759,10 +752,12 @@ function removeBadge(card) {
 
 /**
  * Update existing badge with actual rating, or remove if N/A
+ * [2026-04-13 FIX] updateBadge is now unused — injectBadge is called instead
+ * Keeping for backward compatibility with potential future callers
  */
 function updateBadge(card, data) {
   // [2026-04-12] Remove badge if N/A instead of showing "?"
-  if (data.rating === 'N/A') {
+  if (data.imdbRating === 'N/A') {
     removeBadge(card);
     return;
   }
@@ -770,7 +765,7 @@ function updateBadge(card, data) {
   const badge = card.querySelector('.imdb-badge');
   if (badge) {
     badge.classList.remove('imdb-badge-loading');
-    const ratingText = data.rating.substring(0, 4);
+    const ratingText = data.imdbRating.substring(0, 4);
     badge.innerHTML = `<span>${ratingText}</span>`;
   }
 }
