@@ -1,5 +1,23 @@
 # Release Notes
 
+## [0.2.8] - 2026-04-13
+
+### Added
+- Persistent filter preferences via chrome.storage.sync — filter threshold now automatically saved and restored across sessions
+- Cross-device sync support — filter preference follows users across devices using Chrome's built-in sync
+
+### Changed
+- initializeExtension(): Now restores saved filter preference on page load before applying filters
+- injectFilterBar(): Added storage listener to persist slider value on every change
+- Filter bar initialization: Threshold restored from chrome.storage.sync, defaults to 0 if not saved
+
+### Technical
+- New utility functions: saveFilterPreference() and restoreFilterPreference() for clean storage abstraction
+- Storage key: `imdb_filter_threshold` in chrome.storage.sync (7-day default fallback to local cache)
+- Error handling: Graceful fallback to DEFAULT_RATING_THRESHOLD if storage API fails
+
+---
+
 ## [0.2.7] - 2026-04-13
 
 ### Fixed

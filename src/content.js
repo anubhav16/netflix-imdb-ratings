@@ -246,16 +246,74 @@ function normalizeTitle(title) {
   return title.toLowerCase().trim().replace(/\s+/g, '_');
 }
 
+// ===== FILTER PREFERENCE STORAGE FUNCTIONS =====
+
+/**
+ * Save filter preference to chrome.storage.sync for cross-device sync
+ * [2026-04-13] Persist user's selected rating threshold
+ */
+async function saveFilterPreference(threshold) {
+  try {
+    await chrome.storage.sync.set({ imdb_filter_threshold: threshold });
+    console.log(`[Storage] Saved filter preference: ${threshold}`);
+  } catch (error) {
+    console.error('[Storage] Failed to save filter preference:', error);
+  }
+}
+
+/**
+ * Restore filter preference from chrome.storage.sync
+ * Returns saved threshold or DEFAULT_RATING_THRESHOLD if not found
+ * [2026-04-13] Restore user's previously selected rating threshold on page load
+ */
+async function restoreFilterPreference() {
+  try {
+    const result = await chrome.storage.sync.get('imdb_filter_threshold');
+    const threshold = result.imdb_filter_threshold;
+
+    if (threshold !== undefined && threshold !== null) {
+      console.log(`[Storage] Restored filter preference: ${threshold}`);
+      return threshold;
+    }
+
+    console.log(`[Storage] No saved preference found, using default: ${DEFAULT_RATING_THRESHOLD}`);
+    return DEFAULT_RATING_THRESHOLD;
+  } catch (error) {
+    console.error('[Storage] Failed to restore filter preference:', error);
+    // Graceful fallback to default on error
+    return DEFAULT_RATING_THRESHOLD;
+  }
+}
+
 // ===== DOM INJECTION FUNCTIONS =====
 
 function initializeExtension() {
   // Inject badges on initial page load
   // [2026-04-12 FIX] Increased from 500ms to 1000ms to wait for Netflix layout stabilization
   // This ensures offsetWidth reflects final rendered dimensions on all rows
-  setTimeout(() => {
+  setTimeout(async () => {
     console.log('[Init] Page load initialization: injecting badges and filter bar');
     injectBadgesForVisibleCards();
     injectFilterBar();
+
+    // [2026-04-13] Restore filter preference from chrome.storage.sync and apply
+    const restoredThreshold = await restoreFilterPreference();
+    currentThreshold = restoredThreshold;
+
+    // Apply the restored threshold immediately
+    if (restoredThreshold > 0) {
+      applyFilterToAllCards();
+    }
+
+    // Update slider to show restored value
+    const slider = document.querySelector('.imdb-slider');
+    const valueDisplay = document.querySelector('.imdb-filter-value');
+    if (slider) {
+      slider.value = restoredThreshold;
+    }
+    if (valueDisplay) {
+      valueDisplay.textContent = restoredThreshold.toFixed(1) + '+';
+    }
 
     // [2026-04-13] Verify filter bar is in DOM and visible
     const filterBarElement = document.querySelector('.imdb-filter-bar');
@@ -569,6 +627,9 @@ function injectFilterBar() {
     const handleSliderChange = (e) => {
       currentThreshold = parseFloat(e.target.value);
       valueDisplay.textContent = currentThreshold.toFixed(1) + '+';
+
+      // [2026-04-13] Save filter preference to chrome.storage.sync for persistence
+      saveFilterPreference(currentThreshold);
 
       // [2026-04-12] Track filter usage
       trackFeatureUse('filter-slider');
