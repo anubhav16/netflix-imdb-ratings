@@ -1,5 +1,33 @@
 # Release Notes
 
+## [0.4.0] - 2026-04-17
+
+### Removed
+- **Rotten Tomatoes filter** — Completely removed RT as a feature (mode toggle, RT badges, RT analytics, RT storage key)
+  - Deleted RT_FILTER_LABELS, FILTER_MODES, currentFilterMode, saveFilterMode(), restoreFilterMode()
+  - Deleted reRenderAllBadges() (only needed for mode switching)
+  - Removed RT parsing from normalizeOMDbResponse() and RT fields from cache
+  - Removed RT tracking from analytics (ratingSource, rt_rating, rtRatingsCollected)
+  - Removed .imdb-badge-mode-rt, mode toggle CSS from styles.css
+
+### Changed
+- **Filter thresholds** — Revised IMDb pill set: ≤5, 5+, 6+, 6.5+, 7+, 7.5+, 8+, 8.5+ (removed 5.5+ and 9+, added 6.5+)
+- **Default threshold** — Changed from 5 to 0 (show all by default)
+- **Cell shifting** — Filtered titles now collapse fully in carousel rows and search grid; no empty boxes remain
+  - applyFilterToCard() now hides the outermost flex/grid container (.slider-item or grid item), not just the inner card
+- **Navbar filter bar** — Replaced floating trigger + bottom sheet with always-visible filter bar
+  - Variant A: Pills injected inside Netflix nav bar
+  - Variant B: Fixed bar pinned below Netflix nav (default, resilient to Netflix DOM changes)
+  - Filter is always visible on browse/search pages — no click required to reveal
+
+### Technical
+- Removed ~150 lines of RT-related code from content.js
+- Removed ~45 lines of RT CSS from styles.css
+- Analytics now only tracks IMDb ratings
+- FILTER_UI_MODE constant switches between navbar variants
+
+---
+
 ## [0.3.3] - 2026-04-14
 
 ### Fixed

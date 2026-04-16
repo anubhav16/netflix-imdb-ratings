@@ -1,4 +1,7 @@
 // ===== CONFIGURATION =====
+// Switch between 'VARIANT_A' (inject into Netflix nav) and 'VARIANT_B' (fixed bar below nav)
+const FILTER_UI_MODE = 'VARIANT_B';
+
 // [2026-04-12] Refined selectors to exclude ranking number containers
 const NETFLIX_SELECTORS = [
   '[data-testid="hit-title"]:not([data-testid*="ranking"])',
@@ -8,8 +11,7 @@ const NETFLIX_SELECTORS = [
   // [2026-04-12 FIX] Add search page selector for Netflix search gallery results
   '[data-uia="search-gallery-video-card"]'
 ];
-// [2026-04-13 FIX] Slider ranges 0-9: 0=show all (≤5), 5=show 5+, 6=show 6+, etc.
-const DEFAULT_RATING_THRESHOLD = 5;
+const DEFAULT_RATING_THRESHOLD = 0;
 const BADGE_SIZE_PX = 28;
 const BADGE_FONT_SIZE_PX = 11;
 const IMDB_YELLOW = '#F5C518';
@@ -34,38 +36,17 @@ document.documentElement.appendChild(analyticsScript);
 const pendingTitles = new Set();
 
 // Track filter bar state
-let filterBar = null;
 let currentThreshold = DEFAULT_RATING_THRESHOLD;
-let filterBarInsertionRetries = 0; // [2026-04-12 FIX] Track retry attempts for filter bar
-// [2026-04-13] Filter mode: 'imdb' or 'rotten_tomatoes'
-let currentFilterMode = 'imdb';
-const FILTER_MODES = { imdb: 'IMDb', rotten_tomatoes: 'Rotten Tomatoes' };
 
-// [2026-04-13] Exact filter labels per mode
 const IMDB_FILTER_LABELS = {
   0: '≤5',
-  5: '5.0+',
-  5.5: '5.5+',
-  6: '6.0+',
-  7: '7.0+',
+  5: '5+',
+  6: '6+',
+  6.5: '6.5+',
+  7: '7+',
   7.5: '7.5+',
-  8: '8.0+',
-  8.5: '8.5+',
-  9: '9.0+'
-};
-
-const RT_FILTER_LABELS = {
-  0: '0%',
-  10: '10%',
-  20: '20%',
-  30: '30%',
-  40: '40%',
-  50: '50%',
-  60: '60%',
-  70: '70%',
-  80: '80%',
-  90: '90%',
-  100: '100%'
+  8: '8+',
+  8.5: '8.5+'
 };
 
 // Request queue management
@@ -115,8 +96,7 @@ async function checkCache(title) {
         // [2026-04-13] Return both ratings from cache (backward compatible with old format)
         return {
           title: cached.title,
-          imdbRating: cached.imdbRating || cached.rating, // Fallback for old cache format
-          rtRating: cached.rtRating,
+          imdbRating: cached.imdbRating || cached.rating,
           year: cached.year,
           imdbId: cached.imdbId
         };
@@ -138,12 +118,10 @@ async function checkCache(title) {
 async function saveCache(title, data) {
   try {
     const cacheKey = CACHE_KEY_PREFIX + normalizeTitle(title);
-    // [2026-04-13] Cache both IMDb and RT ratings
     await chrome.storage.local.set({
       [cacheKey]: {
         title: data.title,
         imdbRating: data.imdbRating,
-        rtRating: data.rtRating,
         year: data.year,
         imdbId: data.imdbId,
         timestamp: Date.now()
@@ -263,26 +241,11 @@ async function tryOMDbSearch(title, type) {
  * Normalize OMDb API response to consistent format
  */
 function normalizeOMDbResponse(data) {
-  // [2026-04-13] Extract both IMDb and Rotten Tomatoes ratings
   const imdbRating = data.imdbRating && data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A';
-
-  // [2026-04-13] Parse Rotten Tomatoes score from Ratings array
-  let rtRating = 'N/A';
-  if (data.Ratings && Array.isArray(data.Ratings)) {
-    const rtEntry = data.Ratings.find(r => r.Source === 'Rotten Tomatoes');
-    if (rtEntry && rtEntry.Value) {
-      // Extract percentage from "85%" format to 85 integer
-      const rtPercentage = parseInt(rtEntry.Value.replace('%', ''));
-      if (!isNaN(rtPercentage)) {
-        rtRating = rtPercentage;
-      }
-    }
-  }
 
   return {
     title: data.Title || 'Unknown',
     imdbRating: imdbRating,
-    rtRating: rtRating,
     year: data.Year || null,
     imdbId: data.imdbID || null
   };
@@ -293,23 +256,6 @@ function normalizeOMDbResponse(data) {
  */
 function normalizeTitle(title) {
   return title.toLowerCase().trim().replace(/\s+/g, '_');
-}
-
-/**
- * Get filter labels for current mode
- * [2026-04-13] Return exact labels per IMDb or RT mode
- */
-function getCurrentFilterLabels() {
-  return currentFilterMode === 'imdb' ? IMDB_FILTER_LABELS : RT_FILTER_LABELS;
-}
-
-/**
- * Get filter label for a specific threshold value
- * [2026-04-13] Return display label matching threshold
- */
-function getFilterLabel(threshold) {
-  const labels = getCurrentFilterLabels();
-  return labels[threshold] || `${threshold}`;
 }
 
 // ===== FILTER PREFERENCE STORAGE FUNCTIONS =====
@@ -324,41 +270,6 @@ async function saveFilterPreference(threshold) {
     console.log(`[Storage] Saved filter preference: ${threshold}`);
   } catch (error) {
     console.error('[Storage] Failed to save filter preference:', error);
-  }
-}
-
-/**
- * Save filter mode (IMDb vs Rotten Tomatoes) to chrome.storage.sync
- * [2026-04-13] Persist selected filter type across sessions
- */
-async function saveFilterMode(mode) {
-  try {
-    await chrome.storage.sync.set({ imdb_filter_mode: mode });
-    console.log(`[Storage] Saved filter mode: ${mode}`);
-  } catch (error) {
-    console.error('[Storage] Failed to save filter mode:', error);
-  }
-}
-
-/**
- * Restore filter mode from chrome.storage.sync
- * [2026-04-13] Restore user's previously selected filter type
- */
-async function restoreFilterMode() {
-  try {
-    const result = await chrome.storage.sync.get('imdb_filter_mode');
-    const mode = result.imdb_filter_mode;
-
-    if (mode && (mode === 'imdb' || mode === 'rotten_tomatoes')) {
-      console.log(`[Storage] Restored filter mode: ${mode}`);
-      return mode;
-    }
-
-    console.log(`[Storage] No saved filter mode found, using default: imdb`);
-    return 'imdb';
-  } catch (error) {
-    console.error('[Storage] Failed to restore filter mode:', error);
-    return 'imdb';
   }
 }
 
@@ -438,11 +349,8 @@ function initializeExtension() {
       injectFilterBar();
     }
 
-    // [2026-04-13] Restore filter preference and mode from chrome.storage.sync
     const restoredThreshold = await restoreFilterPreference();
-    const restoredMode = await restoreFilterMode();
     currentThreshold = restoredThreshold;
-    currentFilterMode = restoredMode;
 
     // Apply the restored threshold immediately
     applyFilterToAllCards();
@@ -451,25 +359,19 @@ function initializeExtension() {
     // The new bottom sheet handles pill button active state automatically
   }, 1000);
 
-  // [2026-04-14] Periodic check: re-inject filter trigger if removed AND should be shown
-  // [2026-04-14] Updated to check for .imdb-filter-trigger (new floating button)
-  // Also update visibility based on current page (handles SPA navigation)
+  // Periodic check: re-inject filter bar if removed, update visibility on page changes
   setInterval(() => {
     if (shouldShowFilter()) {
-      const filterTriggerElement = document.querySelector('.imdb-filter-trigger');
-      if (!filterTriggerElement) {
-        console.log('[Periodic] Filter trigger missing from DOM, re-injecting...');
+      const bar = document.querySelector('.imdb-nav-filter-bar');
+      if (!bar) {
+        console.log('[Periodic] Filter bar missing from DOM, re-injecting...');
         injectFilterBar();
       } else {
-        // Ensure it's visible if it exists
-        filterTriggerElement.style.display = 'block';
+        bar.style.display = '';
       }
     } else {
-      // [2026-04-14] Hide trigger if we shouldn't be showing filter on this page
-      const trigger = document.querySelector('.imdb-filter-trigger');
-      if (trigger) {
-        trigger.style.display = 'none';
-      }
+      const bar = document.querySelector('.imdb-nav-filter-bar');
+      if (bar) bar.style.display = 'none';
     }
   }, 5000);
 
@@ -481,7 +383,7 @@ function initializeExtension() {
       injectBadgesForVisibleCards();
       // [2026-04-14] Update trigger visibility on DOM changes (catches SPA navigation)
       if (!shouldShowFilter()) {
-        const trigger = document.querySelector('.imdb-filter-trigger');
+        const trigger = document.querySelector('.imdb-nav-filter-bar');
         if (trigger) trigger.style.display = 'none';
       }
     }, 300);
@@ -501,10 +403,10 @@ function initializeExtension() {
     console.log('[SPA] pushState detected, updating filter visibility');
     // [2026-04-14] Update trigger visibility on SPA navigation
     if (!shouldShowFilter()) {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = 'none';
     } else {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = '';
     }
   };
@@ -514,10 +416,10 @@ function initializeExtension() {
     console.log('[SPA] replaceState detected, updating filter visibility');
     // [2026-04-14] Update trigger visibility on SPA navigation
     if (!shouldShowFilter()) {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = 'none';
     } else {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = '';
     }
   };
@@ -527,10 +429,10 @@ function initializeExtension() {
     console.log('[SPA] popstate detected, updating filter visibility');
     // [2026-04-14] Update trigger visibility on back button
     if (!shouldShowFilter()) {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = 'none';
     } else {
-      const trigger = document.querySelector('.imdb-filter-trigger');
+      const trigger = document.querySelector('.imdb-nav-filter-bar');
       if (trigger) trigger.style.display = '';
     }
   });
@@ -655,14 +557,12 @@ async function requestIMDbRating(title, card) {
     // [2026-04-13 FIX] Check imdbRating field (not rating) — normalizeOMDbResponse returns imdbRating
     if (response && response.imdbRating && response.imdbRating !== 'N/A') {
       console.log(`[IMDb] Updating badge with rating: ${response.imdbRating}`);
-      // [2026-04-12] Track successful API call with full rating data for accuracy improvement
       const ratingData = {
         imdbRating: response.imdbRating,
-        rtRating: response.rtRating,
         year: response.year,
         imdbId: response.imdbId
       };
-      trackAPICall(title, true, false, ratingData, currentFilterMode);
+      trackAPICall(title, true, false, ratingData);
       trackCacheHit(response.cached);
       injectBadge(card, response);
       applyFilterToCard(card, parseFloat(response.imdbRating));
@@ -699,37 +599,18 @@ function injectBadge(card, data) {
   const badgeSize = cardWidth < 100 ? 'small' : 'large';
   badge.setAttribute('data-size', badgeSize);
 
-  // [2026-04-13] Store rating data on badge for re-rendering on mode toggle
   if (data) {
-    badge.dataset.rating = JSON.stringify({
-      imdbRating: data.imdbRating,
-      rtRating: data.rtRating
-    });
+    badge.dataset.rating = JSON.stringify({ imdbRating: data.imdbRating });
   }
 
   if (data === null) {
-    // Loading state: pulsating dot (no text)
-    // [2026-04-12] Show pulsating dot instead of "?" during loading
     badge.className += ' imdb-badge-loading';
     badge.innerHTML = '<span style="width: 6px; height: 6px; background: #F5C518; border-radius: 50%; display: block;"></span>';
   } else {
-    // [2026-04-13] Show rating based on filter mode
-    let ratingText = '?';
-
-    if (currentFilterMode === 'imdb') {
-      // IMDb mode: show imdbRating, add gold color class
-      if (data.imdbRating && data.imdbRating !== 'N/A') {
-        ratingText = data.imdbRating.substring(0, 4);
-        badge.className += ' imdb-badge-mode-imdb';
-      }
-    } else {
-      // RT mode: show rtRating as percentage, add red color class
-      if (data.rtRating && data.rtRating !== 'N/A') {
-        ratingText = `${data.rtRating}%`;
-        badge.className += ' imdb-badge-mode-rt';
-      }
-    }
-
+    badge.className += ' imdb-badge-mode-imdb';
+    const ratingText = (data.imdbRating && data.imdbRating !== 'N/A')
+      ? data.imdbRating.substring(0, 4)
+      : '?';
     badge.innerHTML = `<span>${ratingText}</span>`;
   }
 
@@ -771,239 +652,128 @@ function updateBadge(card, data) {
 }
 
 /**
- * Apply filter to a card based on current threshold
- * [2026-04-13] 0 = show all (≤5), 5 = show 5+, 6 = show 6+, etc.
+ * Apply filter to a card based on current threshold.
+ * Hides the outermost flex/grid container so carousel rows and search grids
+ * reflow without leaving empty boxes.
  */
 function applyFilterToCard(card, rating) {
-  // [2026-04-13] Hide filtered cards with display: none instead of fade
-  // 0 threshold means show all (including ≤5), otherwise hide if rating < threshold
+  // Find or cache the outer container (direct flex/grid child) for this card.
+  // Carousel rows use .slider-item; search grid items sit directly in the grid.
+  if (!card._filterContainer) {
+    card._filterContainer =
+      card.closest('.slider-item') ||
+      card.closest('[class*="slider-item"]') ||
+      card.closest('[data-uia="search-gallery-video-card"]') ||
+      card; // fallback: hide the card itself
+  }
+
+  const target = card._filterContainer;
   if (currentThreshold > 0 && rating < currentThreshold) {
-    card.style.display = 'none';
+    target.style.display = 'none';
   } else {
-    card.style.display = '';
+    target.style.display = '';
   }
 }
 
 /**
- * Inject floating trigger button + bottom sheet panel (replaces old fixed filter bar)
- * [2026-04-14] New minimalist UI: floating button (bottom-right) → taps to reveal bottom sheet with pills
+ * Inject the always-visible filter bar.
+ * Delegates to Variant A (Netflix nav injection) or Variant B (fixed bar below nav)
+ * based on FILTER_UI_MODE constant at top of file.
  */
 function injectFilterBar() {
-  // [2026-04-14] Check if floating trigger already exists (might have been re-injected)
-  const existingTrigger = document.querySelector('.imdb-filter-trigger');
-  if (existingTrigger) {
+  if (document.querySelector('.imdb-nav-filter-bar')) return;
+
+  if (FILTER_UI_MODE === 'VARIANT_A') {
+    injectNavbarFilter();
+  } else {
+    injectFixedFilterBar();
+  }
+}
+
+/**
+ * Variant A: inject pill row directly inside Netflix's top nav bar.
+ * Falls back to Variant B if no nav selector matches.
+ */
+function injectNavbarFilter() {
+  const NAV_SELECTORS = [
+    '[data-uia="header"]',
+    '.pinning-header',
+    '[class*="NavigationBar"]',
+    'header[class*="nav"]'
+  ];
+
+  let navEl = null;
+  for (const sel of NAV_SELECTORS) {
+    navEl = document.querySelector(sel);
+    if (navEl) break;
+  }
+
+  if (!navEl) {
+    console.warn('[Filter] Variant A: no Netflix nav selector matched — falling back to Variant B');
+    injectFixedFilterBar();
     return;
   }
 
-  // [2026-04-14] Create floating trigger button (48px circle, bottom-right)
-  const triggerButton = document.createElement('button');
-  triggerButton.className = 'imdb-filter-trigger';
-  triggerButton.setAttribute('aria-label', 'Filter content');
-  triggerButton.setAttribute('title', 'Filter by rating');
-
-  // [2026-04-14] Show mode icon: IMDb gold or RT red circle
-  const modeIcon = currentFilterMode === 'imdb' ? '◉' : '●';
-  const modeColor = currentFilterMode === 'imdb' ? '#F5C518' : '#E84D37';
-  triggerButton.innerHTML = `<span style="color: ${modeColor}; font-size: 20px;">${modeIcon}</span>`;
-
-  document.body.appendChild(triggerButton);
-  console.log('[Filter] Floating trigger button injected');
-
-  // [2026-04-14] Create bottom sheet panel (hidden, slides up on trigger click)
-  const bottomSheet = document.createElement('div');
-  bottomSheet.className = 'imdb-bottom-sheet';
-  bottomSheet.setAttribute('role', 'dialog');
-  bottomSheet.setAttribute('aria-label', 'Filter panel');
-  bottomSheet.setAttribute('aria-modal', 'true');
-
-  // [2026-04-14] Generate pill buttons from current mode labels
-  const labels = getCurrentFilterLabels();
-  const pillButtonsHTML = Object.entries(labels)
-    .map(([threshold, label]) => {
-      const isActive = parseFloat(threshold) === currentThreshold ? 'active' : '';
-      return `<button class="imdb-pill-button ${isActive}" data-threshold="${threshold}">${label}</button>`;
-    })
-    .join('');
-
-  // [2026-04-14] Build bottom sheet HTML with header, mode toggle, and pill buttons
-  bottomSheet.innerHTML = `
-    <div class="imdb-sheet-backdrop"></div>
-    <div class="imdb-sheet-panel">
-      <div class="imdb-sheet-header">
-        <h2>Filter Content</h2>
-        <button class="imdb-sheet-close" aria-label="Close filter panel">&times;</button>
-      </div>
-
-      <div class="imdb-sheet-content">
-        <div class="imdb-mode-toggle">
-          <button class="imdb-mode-button imdb-mode-button-imdb ${currentFilterMode === 'imdb' ? 'active' : ''}" data-mode="imdb">IMDb</button>
-          <button class="imdb-mode-button imdb-mode-button-rt ${currentFilterMode === 'rotten_tomatoes' ? 'active' : ''}" data-mode="rotten_tomatoes">RT</button>
-        </div>
-
-        <div class="imdb-pill-buttons">
-          ${pillButtonsHTML}
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(bottomSheet);
-  console.log('[Filter] Bottom sheet panel injected');
-
-  // [2026-04-14] Wire open/close handlers
-  try {
-    // Open sheet on trigger button click
-    triggerButton.addEventListener('click', () => {
-      bottomSheet.classList.add('open');
-      document.body.style.overflow = 'hidden'; // [2026-04-14] Prevent scrolling when sheet open
-      console.log('[Filter] Bottom sheet opened');
-    });
-
-    // Close sheet on X button click
-    const closeButton = bottomSheet.querySelector('.imdb-sheet-close');
-    closeButton.addEventListener('click', () => {
-      bottomSheet.classList.remove('open');
-      document.body.style.overflow = '';
-      console.log('[Filter] Bottom sheet closed');
-    });
-
-    // Close sheet on backdrop click (outside panel)
-    const backdrop = bottomSheet.querySelector('.imdb-sheet-backdrop');
-    backdrop.addEventListener('click', () => {
-      bottomSheet.classList.remove('open');
-      document.body.style.overflow = '';
-      console.log('[Filter] Bottom sheet closed (backdrop click)');
-    });
-
-    // [2026-04-14] Close sheet on Escape key
-    const handleEscapeKey = (e) => {
-      if (e.key === 'Escape' && bottomSheet.classList.contains('open')) {
-        bottomSheet.classList.remove('open');
-        document.body.style.overflow = '';
-        console.log('[Filter] Bottom sheet closed (Escape key)');
-      }
-    };
-    document.addEventListener('keydown', handleEscapeKey);
-
-    // [2026-04-14] Handle pill button clicks
-    const pillButtons = bottomSheet.querySelectorAll('.imdb-pill-button');
-    const handlePillButtonClick = (e) => {
-      const threshold = parseFloat(e.target.getAttribute('data-threshold'));
-      currentThreshold = threshold;
-
-      // [2026-04-13] Save filter preference to chrome.storage.sync for persistence
-      saveFilterPreference(currentThreshold);
-
-      // [2026-04-13] Update active state on buttons
-      pillButtons.forEach(btn => btn.classList.remove('active'));
-      e.target.classList.add('active');
-
-      // [2026-04-12] Track filter usage
-      trackFeatureUse('filter-pill-button');
-
-      // Apply filter to all visible cards
-      applyFilterToAllCards();
-      console.log(`[Pill Button] Threshold updated to ${currentThreshold}`);
-    };
-
-    pillButtons.forEach(button => {
-      button.addEventListener('click', handlePillButtonClick);
-    });
-
-    // [2026-04-14] Handle mode toggle clicks
-    const modeButtons = bottomSheet.querySelectorAll('.imdb-mode-button');
-    modeButtons.forEach(button => {
-      button.addEventListener('click', async (e) => {
-        const newMode = e.target.getAttribute('data-mode');
-        if (newMode === currentFilterMode) return; // Already selected
-
-        // Update state and storage
-        currentFilterMode = newMode;
-        await saveFilterMode(newMode);
-
-        // [2026-04-14] Update trigger button icon color
-        const modeIcon = newMode === 'imdb' ? '◉' : '●';
-        const modeColor = newMode === 'imdb' ? '#F5C518' : '#E84D37';
-        triggerButton.innerHTML = `<span style="color: ${modeColor}; font-size: 20px;">${modeIcon}</span>`;
-
-        // Update UI: toggle active button
-        modeButtons.forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-
-        // [2026-04-13] Rebuild pill buttons with new mode labels
-        const newLabels = getCurrentFilterLabels();
-        const newPillButtonsHTML = Object.entries(newLabels)
-          .map(([threshold, label]) => {
-            const isActive = parseFloat(threshold) === currentThreshold ? 'active' : '';
-            return `<button class="imdb-pill-button ${isActive}" data-threshold="${threshold}">${label}</button>`;
-          })
-          .join('');
-
-        const pillButtonsContainer = bottomSheet.querySelector('.imdb-pill-buttons');
-        if (pillButtonsContainer) {
-          pillButtonsContainer.innerHTML = newPillButtonsHTML;
-          // [2026-04-13] Re-attach click listeners to new pill buttons
-          const newPillButtons = bottomSheet.querySelectorAll('.imdb-pill-button');
-          newPillButtons.forEach(button => {
-            button.addEventListener('click', handlePillButtonClick);
-          });
-        }
-
-        // [2026-04-13] Re-render all badges with new mode colors/values
-        reRenderAllBadges();
-
-        // Re-apply filter with new mode (visibility may change based on different scores)
-        applyFilterToAllCards();
-        console.log(`[Mode Toggle] Switched to ${newMode}`);
-      });
-    });
-
-    console.log('[Filter] Event listeners attached for floating trigger and bottom sheet');
-  } catch (error) {
-    console.error('[Filter] Error setting up event listeners:', error);
-  }
+  const bar = buildFilterBar('imdb-nav-filter-bar imdb-nav-filter-bar--variant-a');
+  navEl.appendChild(bar);
+  wireFilterBar(bar);
+  console.log('[Filter] Variant A: pills injected into Netflix nav');
 }
 
 /**
- * Re-render all badges on page with current filter mode
- * [2026-04-13] Update badge colors and values when mode toggles
+ * Variant B: fixed bar pinned just below the Netflix nav, appended to body.
+ * Zero Netflix DOM dependency — resilient to Netflix DOM changes.
  */
-function reRenderAllBadges() {
-  const NETFLIX_SELECTORS_TO_CHECK = [
-    '[data-testid="hit-title"]:not([data-testid*="ranking"])',
-    '.slider-item:not(.ranking-item)',
-    '[data-uia="ptrack-content"]:not([data-uia*="ranking"])',
-    '.title-card-container:not(.ranking-container)',
-    '[data-uia="search-gallery-video-card"]'
-  ];
+function injectFixedFilterBar() {
+  const bar = buildFilterBar('imdb-nav-filter-bar imdb-nav-filter-bar--variant-b');
+  document.body.appendChild(bar);
+  wireFilterBar(bar);
+  console.log('[Filter] Variant B: fixed filter bar injected below nav');
+}
 
-  let cards = [];
-  for (const selector of NETFLIX_SELECTORS_TO_CHECK) {
-    cards = document.querySelectorAll(selector);
-    if (cards.length > 0) break;
-  }
+/**
+ * Build the filter bar DOM element with label and pill buttons.
+ */
+function buildFilterBar(className) {
+  const bar = document.createElement('div');
+  bar.className = className;
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', 'IMDb filter');
 
-  cards.forEach((card) => {
-    const badge = card.querySelector('.imdb-badge');
-    if (badge && badge.dataset.rating) {
-      // Remove old mode classes
-      badge.classList.remove('imdb-badge-mode-imdb', 'imdb-badge-mode-rt');
+  const label = document.createElement('span');
+  label.className = 'imdb-filter-label';
+  label.textContent = 'IMDb';
+  bar.appendChild(label);
 
-      // Parse stored rating data
-      const ratingData = JSON.parse(badge.dataset.rating);
+  const pillsContainer = document.createElement('div');
+  pillsContainer.className = 'imdb-filter-pills';
+  bar.appendChild(pillsContainer);
 
-      // Update badge with new mode
-      if (currentFilterMode === 'imdb') {
-        badge.className = 'imdb-badge imdb-badge-mode-imdb';
-        badge.setAttribute('data-size', badge.dataset.size);
-        badge.innerHTML = `<span>${ratingData.imdbRating || '?'}</span>`;
-      } else {
-        badge.className = 'imdb-badge imdb-badge-mode-rt';
-        badge.setAttribute('data-size', badge.dataset.size);
-        const rtText = ratingData.rtRating && ratingData.rtRating !== 'N/A' ? `${ratingData.rtRating}%` : '?';
-        badge.innerHTML = `<span>${rtText}</span>`;
-      }
-    }
+  Object.entries(IMDB_FILTER_LABELS).forEach(([threshold, text]) => {
+    const btn = document.createElement('button');
+    btn.className = 'imdb-pill-button' + (parseFloat(threshold) === currentThreshold ? ' active' : '');
+    btn.dataset.threshold = threshold;
+    btn.textContent = text;
+    pillsContainer.appendChild(btn);
+  });
+
+  return bar;
+}
+
+/**
+ * Wire pill click handlers on a filter bar element.
+ */
+function wireFilterBar(bar) {
+  const pills = bar.querySelectorAll('.imdb-pill-button');
+  pills.forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentThreshold = parseFloat(btn.dataset.threshold);
+      saveFilterPreference(currentThreshold);
+      pills.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      trackFeatureUse('filter-pill-button');
+      applyFilterToAllCards();
+    });
   });
 }
 
@@ -1022,17 +792,7 @@ function applyFilterToAllCards() {
     if (badge && badge.dataset.rating) {
       // [2026-04-13] Use stored rating data per mode, not badge text
       const ratingData = JSON.parse(badge.dataset.rating);
-      let score = 'N/A';
-
-      if (currentFilterMode === 'imdb') {
-        score = ratingData.imdbRating;
-      } else {
-        score = ratingData.rtRating;
-      }
-
-      const rating = parseFloat(score);
-
-      // [2026-04-13] Only apply filter if we have a valid numeric rating
+      const rating = parseFloat(ratingData.imdbRating);
       if (!isNaN(rating)) {
         applyFilterToCard(card, rating);
       }

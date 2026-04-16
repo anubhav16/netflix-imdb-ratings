@@ -75,11 +75,6 @@
   color: #F5C518;
 }
 
-.imdb-badge-mode-rt {
-  border-color: #E84D37;
-  color: #E84D37;
-}
-
 @keyframes badgeFadeIn {
   from {
     opacity: 0;
@@ -100,163 +95,117 @@
   }
 }
 
-/* ===== FLOATING TRIGGER BUTTON STYLES ===== */
-/* [2026-04-14] Minimalist floating button: 48px circle, bottom-right, fixed position */
+/* ===== FILTER BAR — SHARED STYLES ===== */
 
-.imdb-filter-trigger {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 2px solid rgba(245, 197, 24, 0.4);
-  background: rgba(20, 20, 20, 0.9);
-  cursor: pointer;
-  z-index: 10000;
+.imdb-nav-filter-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s ease;
-  padding: 0;
-  font-size: 0;
+  gap: 10px;
 }
 
-.imdb-filter-trigger:hover {
-  border-color: rgba(245, 197, 24, 0.8);
-  box-shadow: 0 6px 16px rgba(245, 197, 24, 0.3);
-  transform: scale(1.08);
+.imdb-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #F5C518;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
 }
 
-.imdb-filter-trigger:active {
-  transform: scale(0.96);
-}
-
-/* [2026-04-14] Responsive: move button up on mobile to avoid conflicts with Netflix controls */
-@media (max-width: 600px) {
-  .imdb-filter-trigger {
-    bottom: 80px;
-    right: 16px;
-  }
-}
-
-/* ===== BOTTOM SHEET PANEL STYLES ===== */
-/* [2026-04-14] Slide-up panel with backdrop, responsive height (60% desktop, full mobile) */
-
-.imdb-bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 9999;
-  pointer-events: none; /* [2026-04-14] Backdrop doesn't capture clicks unless sheet is open */
-}
-
-.imdb-bottom-sheet.open {
-  pointer-events: auto;
-}
-
-.imdb-sheet-backdrop {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  top: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.imdb-bottom-sheet.open .imdb-sheet-backdrop {
-  opacity: 1;
-}
-
-.imdb-sheet-panel {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(30, 30, 30, 0.98);
-  border-top: 1px solid rgba(245, 197, 24, 0.2);
-  border-radius: 12px 12px 0 0;
-  max-height: 60vh;
+.imdb-filter-pills {
   display: flex;
-  flex-direction: column;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
-}
-
-.imdb-bottom-sheet.open .imdb-sheet-panel {
-  transform: translateY(0);
-}
-
-/* [2026-04-14] Header with title and close button */
-.imdb-sheet-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(245, 197, 24, 0.15);
-  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
-.imdb-sheet-header h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #f5f5f5;
-  letter-spacing: 0.3px;
+/* ===== FILTER BAR — VARIANT A (Netflix nav injection) ===== */
+
+.imdb-nav-filter-bar--variant-a {
+  margin-left: auto;
+  padding: 0 16px;
 }
 
-.imdb-sheet-close {
+.imdb-nav-filter-bar--variant-a .imdb-pill-button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
   background: transparent;
-  border: none;
-  color: #999;
-  font-size: 28px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  padding: 4px 8px;
-  transition: color 0.2s ease;
-  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  user-select: none;
 }
 
-.imdb-sheet-close:hover {
-  color: #f5f5f5;
+.imdb-nav-filter-bar--variant-a .imdb-pill-button:hover {
+  border-color: rgba(245, 197, 24, 0.6);
+  color: #F5C518;
 }
 
-/* [2026-04-14] Scrollable content area with pills and mode toggle */
-.imdb-sheet-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px 20px;
-  overflow-y: auto;
-  flex-grow: 1;
+.imdb-nav-filter-bar--variant-a .imdb-pill-button.active {
+  border-color: #F5C518;
+  color: #F5C518;
+  background: rgba(245, 197, 24, 0.12);
+  font-weight: 600;
 }
 
-/* [2026-04-14] Mobile: full height sheet */
-@media (max-width: 600px) {
-  .imdb-sheet-panel {
-    max-height: 100vh;
-  }
+/* ===== FILTER BAR — VARIANT B (fixed bar below Netflix nav) ===== */
+
+.imdb-nav-filter-bar--variant-b {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  z-index: 9000;
+  padding: 0 24px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* [2026-04-14 REMOVED] Legacy filter bar and slider styles
-   The old fixed-position filter bar (positioned at top: 70px, full width) and range slider
-   have been completely removed in favor of the new floating trigger button + bottom sheet.
-   See git history for the old implementation. */
+.imdb-nav-filter-bar--variant-b .imdb-pill-button {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  user-select: none;
+}
+
+.imdb-nav-filter-bar--variant-b .imdb-pill-button:hover {
+  border-color: rgba(245, 197, 24, 0.5);
+  color: #F5C518;
+}
+
+.imdb-nav-filter-bar--variant-b .imdb-pill-button.active {
+  border-color: #F5C518;
+  color: #F5C518;
+  background: rgba(245, 197, 24, 0.12);
+  font-weight: 600;
+}
 
 /* ===== PILL BUTTON STYLES ===== */
-/* [2026-04-13] Replace range slider with pill buttons matching Netflix aesthetic */
 
-.imdb-pill-buttons {
+.imdb-filter-pills {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .imdb-pill-button {
@@ -285,52 +234,6 @@
   background: rgba(245, 197, 24, 0.15);
   color: #F5C518;
   font-weight: 600;
-}
-
-.imdb-pill-buttons[data-mode="rotten_tomatoes"] .imdb-pill-button.active {
-  border-color: #E84D37;
-  background: rgba(232, 77, 55, 0.15);
-  color: #E84D37;
-}
-
-/* ===== MODE TOGGLE BUTTON STYLES ===== */
-/* [2026-04-13] IMDb/RT mode toggle at top of filter bar */
-
-.imdb-mode-toggle {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.imdb-mode-button {
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid rgba(245, 197, 24, 0.3);
-  background: transparent;
-  color: #999;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.imdb-mode-button:hover {
-  border-color: rgba(245, 197, 24, 0.6);
-  color: #f5f5f5;
-}
-
-.imdb-mode-button.active {
-  border-color: #F5C518;
-  color: #F5C518;
-  background: rgba(245, 197, 24, 0.1);
-  font-weight: 600;
-}
-
-.imdb-mode-button-rt.active {
-  border-color: #E84D37;
-  color: #E84D37;
-  background: rgba(232, 77, 55, 0.1);
 }
 
 /* ===== FILTER EFFECT STYLES ===== */
