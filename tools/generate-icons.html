@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generate Extension Icons</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #141414;
+    color: #f5f5f5;
+    padding: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  h1 { color: #F5C518; margin-bottom: 8px; }
+  p { color: #aaa; line-height: 1.6; }
+  .preview-row { display: flex; gap: 24px; align-items: flex-end; margin: 32px 0; flex-wrap: wrap; }
+  .preview-cell { text-align: center; }
+  .preview-cell canvas { background: #000; border-radius: 8px; display: block; }
+  .preview-cell span { display: block; margin-top: 8px; color: #888; font-size: 12px; }
+  button {
+    padding: 12px 24px;
+    background: #F5C518;
+    color: #000;
+    border: 0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button:hover { background: #e0b015; }
+  code { background: #222; padding: 2px 6px; border-radius: 4px; color: #F5C518; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Generate Extension Icons</h1>
+  <p>
+    Click <strong>Download all</strong> below. Your browser will save four PNG files.
+    Move them into the <code>icons/</code> folder of this repo:
+    <br><br>
+    <code>icon-16.png</code>, <code>icon-32.png</code>, <code>icon-48.png</code>, <code>icon-128.png</code>
+  </p>
+
+  <div class="preview-row">
+    <div class="preview-cell"><canvas id="c16" width="16" height="16"></canvas><span>16×16</span></div>
+    <div class="preview-cell"><canvas id="c32" width="32" height="32"></canvas><span>32×32</span></div>
+    <div class="preview-cell"><canvas id="c48" width="48" height="48"></canvas><span>48×48</span></div>
+    <div class="preview-cell"><canvas id="c128" width="128" height="128"></canvas><span>128×128</span></div>
+  </div>
+
+  <button onclick="downloadAll()">Download all four PNGs</button>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const cx = size / 2;
+      const cy = size / 2;
+
+      ctx.clearRect(0, 0, size, size);
+
+      // Dark rounded square background
+      const radius = size * 0.18;
+      ctx.fillStyle = '#0A0A0A';
+      roundRect(ctx, 0, 0, size, size, radius);
+      ctx.fill();
+
+      // Gold circle in the middle (IMDb badge vibe)
+      ctx.fillStyle = '#F5C518';
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // "N" in black inside the gold circle (for Netflix hint)
+      ctx.fillStyle = '#0A0A0A';
+      ctx.font = `900 ${size * 0.42}px -apple-system, Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('N', cx, cy + size * 0.02);
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    const sizes = [16, 32, 48, 128];
+    sizes.forEach(s => drawIcon(document.getElementById('c' + s)));
+
+    function downloadAll() {
+      sizes.forEach(s => {
+        const canvas = document.getElementById('c' + s);
+        canvas.toBlob(blob => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'icon-' + s + '.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+        }, 'image/png');
+      });
+    }
+  </script>
+</body>
+</html>
