@@ -1,5 +1,23 @@
 # Release Notes
 
+## [0.4.1] - 2026-04-17
+
+### Added
+- **Toggle-off filter** — clicking the currently-active numeric pill now deselects it and returns to "All"
+- **Games page suppression** — filter bar is now hidden on `/games` URLs (games don't have IMDb ratings)
+
+### Changed
+- **Filter UI** — switched default variant to `VARIANT_A` (pills injected into Netflix nav bar, matching Netflix font)
+- **Variant A contrast** — pills now use semi-opaque dark background + backdrop blur + text shadow so they stay readable over bright hero artwork
+- **Label polish** — `≤5` pill renamed to `All` (clearer "no filter" affordance)
+- **Pill order fix** — switched `IMDB_FILTER_LABELS` from object to array so 6.5+ and 7.5+ render in the correct numeric position (JS object key reordering was sorting integer keys before float keys)
+- **Cell shifting robustness** — `applyFilterToCard` now walks up the DOM to the first ancestor whose parent is flex/grid, so filtered rows reflow correctly regardless of Netflix's container class names
+
+### Technical
+- README fully rewritten: simpler install, honest stats, SEO keywords, removed stale RT references
+
+---
+
 ## [0.4.0] - 2026-04-17
 
 ### Removed

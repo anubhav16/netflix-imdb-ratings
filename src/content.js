@@ -1,6 +1,6 @@
 // ===== CONFIGURATION =====
 // Switch between 'VARIANT_A' (inject into Netflix nav) and 'VARIANT_B' (fixed bar below nav)
-const FILTER_UI_MODE = 'VARIANT_B';
+const FILTER_UI_MODE = 'VARIANT_A';
 
 // [2026-04-12] Refined selectors to exclude ranking number containers
 const NETFLIX_SELECTORS = [
@@ -38,16 +38,17 @@ const pendingTitles = new Set();
 // Track filter bar state
 let currentThreshold = DEFAULT_RATING_THRESHOLD;
 
-const IMDB_FILTER_LABELS = {
-  0: '≤5',
-  5: '5+',
-  6: '6+',
-  6.5: '6.5+',
-  7: '7+',
-  7.5: '7.5+',
-  8: '8+',
-  8.5: '8.5+'
-};
+// Array of [threshold, label] — object keys would reorder integer keys before floats.
+const IMDB_FILTER_LABELS = [
+  [0,   'All'],
+  [5,   '5+'],
+  [6,   '6+'],
+  [6.5, '6.5+'],
+  [7,   '7+'],
+  [7.5, '7.5+'],
+  [8,   '8+'],
+  [8.5, '8.5+']
+];
 
 // Request queue management
 let requestQueue = [];
@@ -317,6 +318,12 @@ function shouldShowFilter() {
   // [2026-04-13] Primary check: Hide on player screen (URL is most reliable)
   if (pathname.startsWith('/watch/')) {
     console.log('[Filter] Hiding filter on player screen: /watch/...');
+    return false;
+  }
+
+  // Hide on Netflix Games — games don't have IMDb ratings
+  if (pathname.startsWith('/games')) {
+    console.log('[Filter] Hiding filter on Games page');
     return false;
   }
 
@@ -653,18 +660,13 @@ function updateBadge(card, data) {
 
 /**
  * Apply filter to a card based on current threshold.
- * Hides the outermost flex/grid container so carousel rows and search grids
- * reflow without leaving empty boxes.
+ * Hides the outermost flex/grid child so carousel rows and search grid reflow
+ * without leaving empty boxes. Netflix's wrapper class names vary and change;
+ * we walk up the DOM and pick the first ancestor whose parent is flex/grid.
  */
 function applyFilterToCard(card, rating) {
-  // Find or cache the outer container (direct flex/grid child) for this card.
-  // Carousel rows use .slider-item; search grid items sit directly in the grid.
   if (!card._filterContainer) {
-    card._filterContainer =
-      card.closest('.slider-item') ||
-      card.closest('[class*="slider-item"]') ||
-      card.closest('[data-uia="search-gallery-video-card"]') ||
-      card; // fallback: hide the card itself
+    card._filterContainer = findFlexGridChild(card);
   }
 
   const target = card._filterContainer;
@@ -673,6 +675,28 @@ function applyFilterToCard(card, rating) {
   } else {
     target.style.display = '';
   }
+}
+
+/**
+ * Walk up from `card` and return the first ancestor whose parent uses
+ * a flex or grid layout. Hiding that ancestor causes sibling cards to reflow.
+ */
+function findFlexGridChild(card) {
+  let el = card;
+  while (el && el.parentElement && el.parentElement !== document.body) {
+    const parentDisplay = window.getComputedStyle(el.parentElement).display;
+    if (
+      parentDisplay === 'flex' ||
+      parentDisplay === 'inline-flex' ||
+      parentDisplay === 'grid' ||
+      parentDisplay === 'inline-grid' ||
+      parentDisplay === '-webkit-box'
+    ) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return card;
 }
 
 /**
@@ -749,9 +773,9 @@ function buildFilterBar(className) {
   pillsContainer.className = 'imdb-filter-pills';
   bar.appendChild(pillsContainer);
 
-  Object.entries(IMDB_FILTER_LABELS).forEach(([threshold, text]) => {
+  IMDB_FILTER_LABELS.forEach(([threshold, text]) => {
     const btn = document.createElement('button');
-    btn.className = 'imdb-pill-button' + (parseFloat(threshold) === currentThreshold ? ' active' : '');
+    btn.className = 'imdb-pill-button' + (threshold === currentThreshold ? ' active' : '');
     btn.dataset.threshold = threshold;
     btn.textContent = text;
     pillsContainer.appendChild(btn);
@@ -767,10 +791,14 @@ function wireFilterBar(bar) {
   const pills = bar.querySelectorAll('.imdb-pill-button');
   pills.forEach(btn => {
     btn.addEventListener('click', () => {
-      currentThreshold = parseFloat(btn.dataset.threshold);
+      const clicked = parseFloat(btn.dataset.threshold);
+      // Clicking the active numeric pill toggles back to "All" (threshold 0).
+      // "All" itself doesn't toggle — it's already the off state.
+      currentThreshold = (clicked === currentThreshold && clicked !== 0) ? 0 : clicked;
       saveFilterPreference(currentThreshold);
-      pills.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      pills.forEach(b => {
+        b.classList.toggle('active', parseFloat(b.dataset.threshold) === currentThreshold);
+      });
       trackFeatureUse('filter-pill-button');
       applyFilterToAllCards();
     });

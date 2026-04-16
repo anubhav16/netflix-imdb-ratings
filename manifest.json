@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Netflix IMDb Ratings",
-  "version": "0.3.3",
-  "description": "Display IMDb ratings for movies while browsing Netflix",
+  "version": "0.4.1",
+  "description": "See IMDb ratings on every Netflix thumbnail and filter out low-rated titles in one click.",
   "permissions": [
     "activeTab",
     "scripting",
